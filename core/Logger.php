@@ -108,7 +108,7 @@ class Logger
         $formattedEntry = self::formatLogEntry($logEntry);
 
         // Write to file
-        file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
+        // file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
 
         // Also log critical errors to separate file
         if ($level === 'CRITICAL') {
