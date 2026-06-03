@@ -1,0 +1,501 @@
+<?php
+
+/**
+ * Web Routes
+ * Handles all web page requests
+ */
+
+// Home page
+$router->get('/', function($request, $response) {
+    include ROOT_PATH . '/views/home.php';
+});
+
+// Authentication Routes
+$router->get('/register', ['App\Controllers\AuthController', 'showRegister']);
+$router->post('/register', ['App\Controllers\AuthController', 'register']);
+$router->get('/login', ['App\Controllers\AuthController', 'showLogin']);
+$router->post('/login', ['App\Controllers\AuthController', 'login']);
+$router->post('/logout', ['App\Controllers\AuthController', 'logout']);
+$router->get('/forgot-password', ['App\Controllers\AuthController', 'showForgotPassword']);
+$router->post('/forgot-password', ['App\Controllers\AuthController', 'forgotPassword']);
+$router->get('/reset-password', ['App\Controllers\AuthController', 'showResetPassword']);
+$router->post('/reset-password', ['App\Controllers\AuthController', 'resetPassword']);
+$router->get('/verify-email', ['App\Controllers\AuthController', 'verifyEmail']);
+$router->post('/resend-verification', ['App\Controllers\AuthController', 'resendVerification']);
+
+// Legacy .php entrypoints (compatibility)
+$router->get('/register.php', function($request, $response) {
+    $response->redirect('/register');
+});
+$router->get('/login.php', function($request, $response) {
+    $response->redirect('/login');
+});
+
+// Admin Authentication Routes
+$router->get('/admin/login', ['App\Controllers\AuthController', 'showAdminLogin']);
+$router->post('/admin/login', ['App\Controllers\AuthController', 'adminLogin']);
+$router->post('/admin/logout', ['App\Controllers\AuthController', 'adminLogout']);
+$router->get('/admin/logout', ['App\Controllers\AuthController', 'adminLogout']);
+
+// Protected User Routes (require authentication)
+$router->get('/dashboard', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/dashboard.php';
+});
+
+$router->get('/earn', ['App\Controllers\AdController', 'showEarnPage']);
+
+$router->get('/tasks', ['App\Controllers\TaskController', 'showTasks']);
+
+$router->get('/wallet', ['App\Controllers\WalletController', 'showWallet']);
+$router->post('/wallet/transfer-advisor', ['App\Controllers\WalletController', 'transferToAdvisor']);
+
+$router->get('/deposit', ['App\Controllers\WalletController', 'showDeposit']);
+$router->post('/deposit', ['App\Controllers\WalletController', 'createDeposit']);
+
+$router->get('/withdraw', ['App\Controllers\WalletController', 'showWithdraw']);
+$router->post('/withdraw', ['App\Controllers\WalletController', 'createWithdrawal']);
+
+$router->get('/referral', ['App\Controllers\ReferralController', 'showReferral']);
+
+$router->get('/advisor', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/advisor.php';
+});
+
+$router->get('/advisor/create-ad', ['App\Controllers\WalletController', 'showCreateAd']);
+
+$router->get('/advisor/manage-ads', ['App\Controllers\WalletController', 'showManageAds']);
+
+$router->get('/profile', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/profile.php';
+});
+
+$router->get('/settings', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/settings.php';
+});
+
+$router->get('/change-password', ['App\Controllers\AuthController', 'showChangePassword']);
+$router->post('/change-password', ['App\Controllers\AuthController', 'changePassword']);
+
+$router->get('/support', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/support.php';
+});
+
+// Protected Admin Routes (require admin authentication)
+$router->get('/admin', function($request, $response) {
+    \Core\Auth::requireAdmin();
+
+    $page = (string) ($request->get('page', '') ?? '');
+    $page = trim($page);
+    if ($page !== '' && $page !== 'dashboard') {
+        $map = [
+            'users' => '/admin/users',
+            'deposits' => '/admin/deposits',
+            'withdrawals' => '/admin/withdrawals',
+            'ads' => '/admin/ads',
+            'tasks' => '/admin/tasks',
+            'reports' => '/admin/reports',
+            'referrals' => '/admin/referrals',
+            'notifications' => '/admin/notifications',
+            'settings' => '/admin/settings',
+            'security' => '/admin/security',
+            'profile' => '/admin/profile',
+            'verification-requests' => '/admin/verification-requests',
+            'support-tickets' => '/admin/support/tickets',
+            'stickers' => '/admin/stickers',
+        ];
+
+        if (isset($map[$page])) {
+            $response->redirect($map[$page]);
+            return;
+        }
+    }
+
+    include ROOT_PATH . '/views/admin/dashboard.php';
+});
+
+$router->get('/admin/users', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/users.php';
+});
+
+$router->post('/admin/users/approve', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $userId = $data['user_id'] ?? null;
+    if (!$userId) {
+        $_SESSION['flash_error'] = 'Invalid user.';
+        $response->redirect('/admin/users');
+        return;
+    }
+
+    \Core\Database::update('users', ['status' => 'active'], 'user_id = ?', [$userId]);
+    $_SESSION['flash_success'] = 'Blueprint approved successfully.';
+    $response->redirect('/admin/users');
+});
+
+$router->post('/admin/users/reject', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $userId = $data['user_id'] ?? null;
+    if (!$userId) {
+        $_SESSION['flash_error'] = 'Invalid user.';
+        $response->redirect('/admin/users');
+        return;
+    }
+
+    \Core\Database::update('users', ['status' => 'unverified'], 'user_id = ?', [$userId]);
+    $_SESSION['flash_success'] = 'Blueprint rejected successfully.';
+    $response->redirect('/admin/users');
+});
+
+$router->get('/admin/deposits', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $status = (string) ($request->get('status', 'pending') ?? 'pending');
+    $status = trim($status);
+    if (!in_array($status, ['pending', 'approved', 'rejected'], true)) {
+        $status = 'pending';
+    }
+
+    $counts = [
+        'pending' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'pending'"),
+        'approved' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved'"),
+        'rejected' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'rejected'")
+    ];
+
+    $deposits = \Core\Database::fetchAll(
+        "SELECT 
+            d.deposit_id,
+            d.user_id,
+            u.username,
+            u.email,
+            d.currency,
+            d.amount,
+            d.wallet_address,
+            d.txid,
+            d.status,
+            d.admin_notes,
+            d.created_at
+        FROM deposits d
+        JOIN users u ON u.user_id = d.user_id
+        WHERE d.status = ?
+        ORDER BY d.created_at DESC
+        LIMIT 200",
+        [$status]
+    );
+
+    include ROOT_PATH . '/views/admin/deposits.php';
+});
+
+$router->post('/admin/deposits/approve', function($request, $response) {
+    \Core\Auth::requireAdmin();
+
+    $data = $request->all();
+    $depositId = (int) ($data['deposit_id'] ?? 0);
+    $adminNotes = isset($data['admin_notes']) ? (string) $data['admin_notes'] : null;
+
+    if ($depositId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid deposit.';
+        $response->redirect('/admin/deposits');
+        return;
+    }
+
+    try {
+        \Core\Database::beginTransaction();
+
+        $deposit = \Core\Database::fetch(
+            "SELECT deposit_id, user_id, currency, amount, status FROM deposits WHERE deposit_id = ? FOR UPDATE",
+            [$depositId]
+        );
+
+        if (!$deposit) {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'Deposit not found.';
+            $response->redirect('/admin/deposits');
+            return;
+        }
+
+        if (($deposit['status'] ?? '') !== 'pending') {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'This deposit has already been processed.';
+            $response->redirect('/admin/deposits');
+            return;
+        }
+
+        $user = \Core\Database::fetch(
+            "SELECT balance FROM users WHERE user_id = ? FOR UPDATE",
+            [(int) $deposit['user_id']]
+        );
+
+        if (!$user) {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'User not found.';
+            $response->redirect('/admin/deposits');
+            return;
+        }
+
+        $balanceBefore = (float) ($user['balance'] ?? 0);
+        $amount = (float) ($deposit['amount'] ?? 0);
+        $balanceAfter = $balanceBefore + $amount;
+
+        \Core\Database::update(
+            'users',
+            ['balance' => $balanceAfter],
+            'user_id = ?',
+            [(int) $deposit['user_id']]
+        );
+
+        $depositUpdate = ['status' => 'approved'];
+        if ($adminNotes !== null && $adminNotes !== '') {
+            $depositUpdate['admin_notes'] = $adminNotes;
+        }
+
+        \Core\Database::update(
+            'deposits',
+            $depositUpdate,
+            'deposit_id = ?',
+            [$depositId]
+        );
+
+        \Core\Database::insert('wallet_transactions', [
+            'user_id' => (int) $deposit['user_id'],
+            'type' => 'deposit',
+            'amount' => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after' => $balanceAfter,
+            'description' => 'Deposit approved: ' . $amount . ' ' . (string) ($deposit['currency'] ?? ''),
+            'reference_id' => $depositId,
+            'reference_type' => 'deposit'
+        ]);
+
+        \Core\Database::commit();
+
+        $_SESSION['flash_success'] = 'Deposit approved successfully.';
+        $response->redirect('/admin/deposits');
+    } catch (\Exception $e) {
+        if (\Core\Database::inTransaction()) {
+            \Core\Database::rollback();
+        }
+        if (class_exists(\Core\Logger::class)) {
+            \Core\Logger::error('Approve deposit error: ' . $e->getMessage());
+        }
+        $_SESSION['flash_error'] = 'Failed to approve deposit.';
+        $response->redirect('/admin/deposits');
+    }
+});
+
+$router->post('/admin/deposits/reject', function($request, $response) {
+    \Core\Auth::requireAdmin();
+
+    $data = $request->all();
+    $depositId = (int) ($data['deposit_id'] ?? 0);
+    $adminNotes = isset($data['admin_notes']) ? (string) $data['admin_notes'] : null;
+
+    if ($depositId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid deposit.';
+        $response->redirect('/admin/deposits');
+        return;
+    }
+
+    try {
+        \Core\Database::beginTransaction();
+
+        $deposit = \Core\Database::fetch(
+            "SELECT deposit_id, status FROM deposits WHERE deposit_id = ? FOR UPDATE",
+            [$depositId]
+        );
+
+        if (!$deposit) {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'Deposit not found.';
+            $response->redirect('/admin/deposits');
+            return;
+        }
+
+        if (($deposit['status'] ?? '') !== 'pending') {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'This deposit has already been processed.';
+            $response->redirect('/admin/deposits');
+            return;
+        }
+
+        $depositUpdate = ['status' => 'rejected'];
+        if ($adminNotes !== null && $adminNotes !== '') {
+            $depositUpdate['admin_notes'] = $adminNotes;
+        }
+
+        \Core\Database::update(
+            'deposits',
+            $depositUpdate,
+            'deposit_id = ?',
+            [$depositId]
+        );
+
+        \Core\Database::commit();
+
+        $_SESSION['flash_success'] = 'Deposit rejected successfully.';
+        $response->redirect('/admin/deposits');
+    } catch (\Exception $e) {
+        if (\Core\Database::inTransaction()) {
+            \Core\Database::rollback();
+        }
+        if (class_exists(\Core\Logger::class)) {
+            \Core\Logger::error('Reject deposit error: ' . $e->getMessage());
+        }
+        $_SESSION['flash_error'] = 'Failed to reject deposit.';
+        $response->redirect('/admin/deposits');
+    }
+});
+
+$router->get('/admin/withdrawals', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/withdrawals.php';
+});
+
+$router->get('/admin/ads', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/ads.php';
+});
+
+$router->get('/admin/tasks', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/tasks.php';
+});
+
+$router->get('/admin/referrals', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/referrals.php';
+});
+
+$router->get('/admin/reports', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/reports.php';
+});
+
+$router->get('/admin/notifications', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/notifications.php';
+});
+
+$router->get('/admin/settings', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/settings.php';
+});
+
+$router->get('/admin/security', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/security.php';
+});
+
+$router->get('/admin/profile', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    include ROOT_PATH . '/views/admin/profile.php';
+});
+
+// Legacy admin pages -> single admin panel
+$router->get('/admin/_legacy/verification-requests', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    http_response_code(404);
+    include ROOT_PATH . '/views/errors/404.php';
+});
+
+$router->get('/admin/_legacy/support/tickets', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    http_response_code(404);
+    include ROOT_PATH . '/views/errors/404.php';
+});
+
+$router->get('/admin/_legacy/stickers', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    http_response_code(404);
+    include ROOT_PATH . '/views/errors/404.php';
+});
+
+// Static Pages
+$router->get('/about', function($request, $response) {
+    include ROOT_PATH . '/views/pages/about.php';
+});
+
+$router->get('/terms', function($request, $response) {
+    include ROOT_PATH . '/views/pages/terms.php';
+});
+
+$router->get('/privacy', function($request, $response) {
+    include ROOT_PATH . '/views/pages/privacy.php';
+});
+
+$router->get('/faq', function($request, $response) {
+    include ROOT_PATH . '/views/pages/faq.php';
+});
+
+$router->get('/contact', function($request, $response) {
+    include ROOT_PATH . '/views/pages/contact.php';
+});
+
+// Error pages
+$router->get('/404', function($request, $response) {
+    http_response_code(404);
+    include ROOT_PATH . '/views/errors/404.php';
+});
+
+$router->get('/500', function($request, $response) {
+    http_response_code(500);
+    include ROOT_PATH . '/views/errors/500.php';
+});
+
+// Maintenance page (if enabled)
+$router->get('/maintenance', function($request, $response) {
+    http_response_code(503);
+    include ROOT_PATH . '/views/errors/maintenance.php';
+});
+
+// Verification Routes
+$router->get('/verify', ['App\Controllers\VerifiedController', 'showVerificationForm']);
+$router->post('/verify/submit', ['App\Controllers\VerifiedController', 'applyVerification']);
+
+// Profile Routes (user pages)
+$router->get('/profile/edit', ['App\Controllers\ProfileController', 'showEditProfile']);
+$router->post('/profile/update', ['App\Controllers\ProfileController', 'updateProfile']);
+$router->post('/profile/links/add', ['App\Controllers\ProfileController', 'addProfileLink']);
+$router->post('/profile/links/update', ['App\Controllers\ProfileController', 'updateProfileLink']);
+$router->get('/profile/links/delete', ['App\Controllers\ProfileController', 'deleteProfileLink']);
+$router->post('/profile/links/reorder', ['App\Controllers\ProfileController', 'reorderProfileLinks']);
+
+// Support Routes (user pages)
+$router->get('/support/tickets', ['App\Controllers\SupportController', 'showTickets']);
+$router->get('/support/create', ['App\Controllers\SupportController', 'showCreateTicket']);
+$router->post('/support/create', ['App\Controllers\SupportController', 'createTicket']);
+$router->get('/support/ticket', ['App\Controllers\SupportController', 'showTicket']);
+$router->post('/support/respond', ['App\Controllers\SupportController', 'addResponse']);
+
+// Search Routes
+$router->get('/search', ['App\Controllers\SearchController', 'search']);
+$router->get('/search/autocomplete', ['App\Controllers\SearchController', 'autocomplete']);
+$router->get('/search/trending', ['App\Controllers\SearchController', 'getTrendingSearches']);
+$router->get('/search/suggestions', ['App\Controllers\SearchController', 'getSearchSuggestions']);
+
+// Stickers Routes (user pages)
+$router->get('/stickers', ['App\Controllers\StickerController', 'showStickers']);
+$router->get('/stickers/remove', ['App\Controllers\StickerController', 'removeSticker']);
+
+// Admin Verification Routes
+$router->get('/admin/verification-requests', ['App\Controllers\VerifiedController', 'showVerificationRequests']);
+$router->post('/admin/verification/process', ['App\Controllers\VerifiedController', 'processVerificationRequest']);
+
+// Admin Support Routes - view all tickets
+$router->get('/admin/support/tickets', ['App\Controllers\SupportController', 'showAllTickets']);
+$router->post('/admin/support/update-status', ['App\Controllers\SupportController', 'updateTicketStatus']);
+
+// Admin Stickers Routes - management
+$router->get('/admin/stickers', ['App\Controllers\StickerController', 'showStickerManagement']);
+$router->post('/admin/stickers/create', ['App\Controllers\StickerController', 'createCustomSticker']);
+
+// Catch all route for 404
+$router->get('/{path:.*}', function($request, $response) {
+    http_response_code(404);
+    include ROOT_PATH . '/views/errors/404.php';
+});

@@ -1,0 +1,253 @@
+.verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.verified-badge::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transform: rotate(45deg);
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.verified-badge-icon {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+
+.verified-badge-icon::before {
+    content: '✓';
+    color: #1e40af;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.verified-badge-large {
+    padding: 8px 20px;
+    font-size: 14px;
+    border-radius: 25px;
+}
+
+.verified-badge-large .verified-badge-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.verified-badge-large .verified-badge-icon::before {
+    font-size: 12px;
+}
+
+.verified-badge-small {
+    padding: 2px 8px;
+    font-size: 10px;
+    border-radius: 15px;
+}
+
+.verified-badge-small .verified-badge-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.verified-badge-small .verified-badge-icon::before {
+    font-size: 8px;
+}
+
+.verified-profile-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    position: relative;
+}
+
+.verified-profile-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    padding: 2px;
+    background: linear-gradient(135deg, #1e40af, #3b82f6, #60a5fa);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: exclude;
+    mask-composite: exclude;
+    z-index: -1;
+}
+
+.verified-features {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.verified-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.verified-feature-icon {
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #10b981, #34d399);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.verified-shield {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.verified-shield::before {
+    content: '🛡️';
+    font-size: 12px;
+}
+
+.verified-sticker {
+    display: inline-block;
+    padding: 4px 8px;
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    color: white;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin: 2px;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+.verified-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.verified-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2937;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 1000;
+}
+
+.verified-tooltip:hover::after {
+    opacity: 1;
+}
+
+.blueprint-tick {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #60a5fa 0%, #3b82f6 45%, #1e40af 100%);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.blueprint-tick::before {
+    content: '✓';
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 13px;
+    line-height: 1;
+    transform: translateY(-0.5px);
+}
+
+.blueprint-tick::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.blueprint-tick-small {
+    width: 18px;
+    height: 18px;
+}
+
+.blueprint-tick-small::before {
+    font-size: 11px;
+}
+
+.blueprint-tick-large {
+    width: 28px;
+    height: 28px;
+}
+
+.blueprint-tick-large::before {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .verified-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+    
+    .verified-badge-large {
+        font-size: 12px;
+        padding: 6px 15px;
+    }
+}
