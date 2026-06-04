@@ -4,13 +4,7 @@
     "api/index.php": { "runtime": "vercel-php@0.7.2" }
   },
   "routes": [
-    { "src": "/vsitoa/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/vsitoa/api/auth/register", "dest": "/views/register.php" },
-    { "src": "/vsitoa/api/auth/login", "dest": "/views/login.php" },
-    { "src": "/register", "dest": "/views/register.php" },
-    { "src": "/login", "dest": "/views/login.php" },
-    { "src": "/", "dest": "/views/index.php" },
-    { "src": "/(.*)", "dest": "/views/$1" }
+    { "src": "/(.*)", "dest": "api/index.php" }
   ]
 }
