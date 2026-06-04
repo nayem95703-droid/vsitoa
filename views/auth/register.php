@@ -9,7 +9,6 @@ ob_start();
 
 <div class="container-fluid vh-100">
     <div class="row h-100">
-        <!-- Left Side - Registration Form -->
         <div class="col-lg-6 d-flex align-items-center justify-content-center bg-light">
             <div class="w-100" style="max-width: 450px;">
                 <div class="text-center mb-4">
@@ -23,7 +22,6 @@ ob_start();
                         <form id="registerForm">
                             <input type="hidden" name="_token" value="<?= $_SESSION['_token'] ?? '' ?>">
                             
-                            <!-- Account Information -->
                             <h5 class="mb-3">Account Information</h5>
                             
                             <div class="mb-3">
@@ -66,7 +64,6 @@ ob_start();
                                 </div>
                             </div>
 
-                            <!-- Referral Information -->
                             <h5 class="mb-3 mt-4">Referral (Optional)</h5>
                             
                             <div class="mb-3">
@@ -78,7 +75,6 @@ ob_start();
                                 <small class="text-muted">Get bonus earnings from referrals</small>
                             </div>
 
-                            <!-- Terms and Conditions -->
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
                                 <label class="form-check-label" for="terms">
@@ -105,7 +101,6 @@ ob_start();
             </div>
         </div>
 
-        <!-- Right Side - Benefits -->
         <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center bg-primary text-white">
             <div class="text-center px-4">
                 <h1 class="display-4 fw-bold mb-4">Why Join <?= Config::get('app.name') ?>?</h1>
@@ -154,7 +149,6 @@ ob_start();
     </div>
 </div>
 
-<!-- Alert Modal -->
 <div class="modal fade" id="alertModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -249,7 +243,8 @@ document.addEventListener('DOMContentLoaded', function() {
         registerBtn.disabled = true;
         registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating Account...';
         
-        fetch(basePath + '/register', {
+        // এখানে সঠিক এপিআই রুট '/api/auth/register' করে দেওয়া হলো
+        fetch(basePath + '/api/auth/register', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
