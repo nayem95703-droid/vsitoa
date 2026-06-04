@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
         
         // রাস্তা পরিবর্তন করে সঠিক এপিআই রুট '/api/auth/login' দেওয়া হলো
-        fetch(basePath + '/api/auth/login', {
+        fetch('/login', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',

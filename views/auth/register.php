@@ -244,7 +244,8 @@ document.addEventListener('DOMContentLoaded', function() {
         registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Creating Account...';
         
         // এখানে সঠিক এপিআই রুট '/api/auth/register' করে দেওয়া হলো
-        fetch(basePath + '/api/auth/register', {
+        // Vercel রাউটিং এর জন্য রুট সোজা এবং পরিষ্কার করে দেওয়া হলো
+fetch('/register', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
