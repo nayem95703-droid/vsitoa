@@ -9,7 +9,6 @@ ob_start();
 
 <div class="container-fluid vh-100">
     <div class="row h-100">
-        <!-- Left Side - Login Form -->
         <div class="col-lg-6 d-flex align-items-center justify-content-center bg-light">
             <div class="w-100" style="max-width: 400px;">
                 <div class="text-center mb-4">
@@ -74,7 +73,6 @@ ob_start();
             </div>
         </div>
 
-        <!-- Right Side - Simple Call to Action -->
         <div class="col-lg-6 d-none d-lg-flex align-items-center justify-content-center bg-primary text-white">
             <div class="text-center px-4">
                 <h1 class="display-4 fw-bold mb-4">Join <?= Config::get('app.name') ?></h1>
@@ -89,7 +87,6 @@ ob_start();
     </div>
 </div>
 
-<!-- Alert Modal -->
 <div class="modal fade" id="alertModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -165,7 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Logging in...';
         
-        fetch(basePath + '/login', {
+        // রাস্তা পরিবর্তন করে সঠিক এপিআই রুট '/api/auth/login' দেওয়া হলো
+        fetch(basePath + '/api/auth/login', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
