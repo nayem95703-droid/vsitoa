@@ -4,9 +4,12 @@
     "api/index.php": { "runtime": "vercel-php@0.7.2" }
   },
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/index.php"
-    }
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/app/(.*)", "dest": "/app/$1" },
+    { "src": "/config/(.*)", "dest": "/config/$1" },
+    { "src": "/register", "dest": "/views/register.php" },
+    { "src": "/login", "dest": "/views/login.php" },
+    { "src": "/", "dest": "/views/index.php" },
+    { "src": "/(.*)", "dest": "/views/$1" }
   ]
 }
