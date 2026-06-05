@@ -25,6 +25,14 @@ class Validator
             $rules = is_string($fieldRules) ? explode('|', $fieldRules) : $fieldRules;
             $value = $this->data[$field] ?? null;
 
+            // When a field is optional (nullable/sometimes) and no value was
+            // provided, skip the remaining rules so empty optional inputs don't
+            // trigger format validators such as alpha_num.
+            $isOptional = in_array('nullable', $rules, true) || in_array('sometimes', $rules, true);
+            if ($isOptional && (is_null($value) || (is_string($value) && trim($value) === ''))) {
+                continue;
+            }
+
             foreach ($rules as $rule) {
                 if (!$this->validateRule($field, $value, $rule)) {
                     break; // Stop on first error for this field
@@ -253,7 +261,7 @@ class Validator
 
     private function validateAlpha(string $field, mixed $value): bool
     {
-        if (!preg_match('/^[a-zA-Z]+$/', $value)) {
+        if (!preg_match('/^[a-zA-Z]+$/', (string) $value)) {
             $this->addError($field, 'alpha');
             return false;
         }
@@ -263,7 +271,7 @@ class Validator
 
     private function validateAlphaNum(string $field, mixed $value): bool
     {
-        if (!preg_match('/^[a-zA-Z0-9]+$/', $value)) {
+        if (!preg_match('/^[a-zA-Z0-9]+$/', (string) $value)) {
             $this->addError($field, 'alpha_num');
             return false;
         }
@@ -273,7 +281,7 @@ class Validator
 
     private function validateAlphaDash(string $field, mixed $value): bool
     {
-        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $value)) {
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', (string) $value)) {
             $this->addError($field, 'alpha_dash');
             return false;
         }

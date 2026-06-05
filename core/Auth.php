@@ -303,6 +303,8 @@ class Auth
         // Hash password
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
 
+        $requireVerification = (bool) Config::get('security.require_email_verification');
+
         // Insert user
         $userId = Database::insert('users', [
             'username' => $data['username'],
@@ -311,12 +313,16 @@ class Auth
             'wallet_address' => $data['wallet_address'] ?? null,
             'referral_code' => $referralCode,
             'referred_by' => $referredBy,
-            'status' => Config::get('security.require_email_verification') ? 'unverified' : 'active',
-            'email_verified' => !Config::get('security.require_email_verification')
+            'status' => $requireVerification ? 'unverified' : 'active',
+            'email_verified' => $requireVerification ? 0 : 1
         ]);
 
         // Get created user
         $user = Database::fetch("SELECT * FROM users WHERE user_id = ?", [$userId]);
+
+        if (!$user) {
+            throw new \Exception('Failed to load the newly created account.');
+        }
 
         // Create referral record if applicable
         if ($referredBy) {
@@ -334,9 +340,17 @@ class Auth
             }
         }
 
-        // Send verification email if required
-        if (Config::get('security.require_email_verification')) {
-            self::sendVerificationEmail($user);
+        // Send verification email if required. A mail/SMTP failure must not
+        // abort an otherwise successful registration.
+        if ($requireVerification) {
+            try {
+                self::sendVerificationEmail($user);
+            } catch (\Throwable $e) {
+                Logger::error('Verification email could not be sent', [
+                    'user_id' => $user['user_id'] ?? null,
+                    'error' => $e->getMessage()
+                ]);
+            }
         } else {
             // Auto login if no verification required
             $token = self::generateUserToken($user);
