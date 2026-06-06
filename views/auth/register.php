@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // এখানে সঠিক এপিআই রুট '/api/auth/register' করে দেওয়া হলো
         // Vercel রাউটিং এর জন্য রুট সোজা এবং পরিষ্কার করে দেওয়া হলো
-fetch('/register', {
+fetch(basePath + '/api/auth/register', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
