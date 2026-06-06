@@ -186,44 +186,31 @@ class Router
                 $args = array_merge($baseArgs, array_slice($params, 0, $extraMax));
                 call_user_func_array($handler, $args);
             } catch (\Throwable $e) {
-                if (class_exists(\Core\Logger::class)) {
-                    \Core\Logger::error('Route handler execution failed', [
-                        'handler' => $handler,
-                        'error' => $e->getMessage(),
-                        'path' => $request->getPath(),
-                        'method' => $request->getMethod()
-                    ]);
-                }
+                $this->handleHandlerError($e, $handler, $request, $response);
             }
             return;
         }
 
         if (is_array($handler)) {
             [$class, $method] = $handler;
-            
-            if (class_exists($class)) {
-                $instance = new $class();
 
+            if (class_exists($class) && method_exists($class, $method)) {
                 try {
+                    $instance = new $class();
                     $ref = new \ReflectionMethod($instance, $method);
                     $baseArgs = [$request, $response];
                     $extraMax = max(0, $ref->getNumberOfParameters() - count($baseArgs));
                     $args = array_merge($baseArgs, array_slice($params, 0, $extraMax));
                     call_user_func_array([$instance, $method], $args);
-                    return;
                 } catch (\Throwable $e) {
-                    if (class_exists(\Core\Logger::class)) {
-                        \Core\Logger::error('Route handler execution failed', [
-                            'handler' => $handler,
-                            'error' => $e->getMessage(),
-                            'path' => $request->getPath(),
-                            'method' => $request->getMethod()
-                        ]);
-                    }
+                    $this->handleHandlerError($e, $handler, $request, $response);
                 }
+                return;
             }
         }
 
+        // The route exists but its handler could not be resolved (missing class
+        // or method). This is a configuration problem, not a runtime error.
         if (class_exists(\Core\Logger::class)) {
             \Core\Logger::error('Invalid route handler', [
                 'handler' => $handler,
@@ -232,11 +219,43 @@ class Router
             ]);
         }
 
+        $this->sendServerError($request, $response, 'Invalid route handler');
+    }
+
+    /**
+     * Handle an exception thrown while running a resolved route handler.
+     *
+     * The real error is always logged. The response surfaces the underlying
+     * message when debug mode is enabled, and a generic message otherwise, so
+     * genuine handler failures are no longer masked as "Invalid route handler".
+     */
+    private function handleHandlerError(\Throwable $e, callable|array $handler, Request $request, Response $response): void
+    {
+        if (class_exists(\Core\Logger::class)) {
+            \Core\Logger::error('Route handler execution failed', [
+                'handler' => $handler,
+                'error' => $e->getMessage(),
+                'path' => $request->getPath(),
+                'method' => $request->getMethod()
+            ]);
+        }
+
+        $debug = class_exists(\Core\Config::class) && \Core\Config::get('app.debug');
+        $message = $debug ? $e->getMessage() : 'Something went wrong. Please try again.';
+
+        $this->sendServerError($request, $response, $message);
+    }
+
+    /**
+     * Send a 500 response, choosing JSON or HTML based on the request type.
+     */
+    private function sendServerError(Request $request, Response $response, string $message): void
+    {
         $isApiPath = preg_match('#(^|/)(api)(/|$)#', $request->getPath()) === 1;
         if ($request->isAjax() || $isApiPath) {
             $response->json([
                 'success' => false,
-                'message' => 'Invalid route handler'
+                'message' => $message
             ], 500);
             return;
         }

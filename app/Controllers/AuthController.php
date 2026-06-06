@@ -130,10 +130,30 @@ class AuthController
                 'requires_verification' => Config::get('security.require_email_verification')
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::error("Registration failed: " . $e->getMessage());
-            $response->error($e->getMessage());
+            $response->error($this->safeErrorMessage($e, 'Registration failed. Please try again.'));
         }
+    }
+
+    /**
+     * Build a user-safe error message.
+     *
+     * Domain errors (thrown as \Exception, e.g. "Email already exists") are
+     * shown directly. Unexpected runtime errors (\Error/TypeError) are hidden
+     * behind a generic message in production but surfaced when APP_DEBUG is on.
+     */
+    private function safeErrorMessage(\Throwable $e, string $fallback): string
+    {
+        if ($e instanceof \Exception) {
+            return $e->getMessage();
+        }
+
+        if (Config::get('app.debug')) {
+            return $e->getMessage();
+        }
+
+        return $fallback;
     }
 
     /**
@@ -193,9 +213,9 @@ class AuthController
                 'redirect' => $request->get('redirect', '/dashboard')
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Logger::warning("Login failed for {$data['email']}: " . $e->getMessage());
-            $response->error($e->getMessage());
+            $response->error($this->safeErrorMessage($e, 'Login failed. Please try again.'));
         }
     }
 
