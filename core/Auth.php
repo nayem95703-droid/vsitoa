@@ -317,12 +317,20 @@ class Auth
             'email_verified' => $requireVerification ? 0 : 1
         ]);
 
-        // Get created user
-        $user = Database::fetch("SELECT * FROM users WHERE user_id = ?", [$userId]);
+        // Get created user. Fetch by the unique email rather than by user_id so
+        // this works regardless of which column the database auto-increments.
+        $user = Database::fetch("SELECT * FROM users WHERE email = ?", [$data['email']]);
+
+        if (!$user) {
+            $user = Database::fetch("SELECT * FROM users WHERE user_id = ?", [$userId]);
+        }
 
         if (!$user) {
             throw new \Exception('Failed to load the newly created account.');
         }
+
+        // Prefer the row's own identifier; fall back to the insert id.
+        $userId = (int) ($user['user_id'] ?? $userId);
 
         // Create referral record if applicable
         if ($referredBy) {
