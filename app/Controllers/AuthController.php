@@ -131,9 +131,16 @@ class AuthController
             ]);
 
         } catch (\Throwable $e) {
-            Logger::error("Registration failed: " . $e->getMessage());
-            $response->error($this->safeErrorMessage($e, 'Registration failed. Please try again.'));
-        }
+    Logger::error("Registration failed: " . $e->getMessage());
+
+    $response->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ], 500);
+}
     }
 
     /**
