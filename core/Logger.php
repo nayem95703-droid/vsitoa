@@ -4,7 +4,8 @@ namespace Core;
 
 class Logger
 {
-    private static string $logFile;
+    private static ?string $logFile = null;
+    private static bool $fileLoggingEnabled = true;
     private static array $levels = [
         'DEBUG' => 0,
         'INFO' => 1,
@@ -18,12 +19,58 @@ class Logger
      */
     public static function initialize(): void
     {
-        $logDir = ROOT_PATH . '/logs';
-        if (!is_dir($logDir)) {
-            mkdir($logDir, 0755, true);
+        $logDir = self::resolveLogDirectory();
+
+        if ($logDir === null) {
+            self::$fileLoggingEnabled = false;
+            self::$logFile = null;
+            return;
         }
 
+        if (!is_dir($logDir) && !@mkdir($logDir, 0755, true) && !is_dir($logDir)) {
+            self::$fileLoggingEnabled = false;
+            self::$logFile = null;
+            return;
+        }
+
+        if (!is_writable($logDir)) {
+            self::$fileLoggingEnabled = false;
+            self::$logFile = null;
+            return;
+        }
+
+        self::$fileLoggingEnabled = true;
         self::$logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
+    }
+
+    /**
+     * Pick a writable log directory for local and serverless runtimes.
+     */
+    private static function resolveLogDirectory(): ?string
+    {
+        if (getenv('VERCEL') || getenv('VERCEL_ENV')) {
+            $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/vsitoa_logs';
+            return $tmpDir;
+        }
+
+        $configuredDir = Config::get('log.directory');
+        if (is_string($configuredDir) && $configuredDir !== '') {
+            return $configuredDir;
+        }
+
+        return ROOT_PATH . '/logs';
+    }
+
+    /**
+     * Write to a log file when the filesystem is writable.
+     */
+    private static function writeToFile(string $path, string $contents): void
+    {
+        if (!self::$fileLoggingEnabled) {
+            return;
+        }
+
+        @file_put_contents($path, $contents, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -81,7 +128,7 @@ class Logger
             return;
         }
 
-        if (!isset(self::$logFile)) {
+        if (self::$logFile === null) {
             self::initialize();
         }
 
@@ -107,13 +154,16 @@ class Logger
         // Format log entry
         $formattedEntry = self::formatLogEntry($logEntry);
 
-        // Write to file
-        // file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
+        if (self::$fileLoggingEnabled && self::$logFile) {
+            self::writeToFile(self::$logFile, $formattedEntry);
+        } else {
+            error_log('[' . $level . '] ' . $message . ' ' . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
 
         // Also log critical errors to separate file
-        if ($level === 'CRITICAL') {
-            $criticalLogFile = ROOT_PATH . '/logs/critical_' . date('Y-m-d') . '.log';
-            file_put_contents($criticalLogFile, $formattedEntry, FILE_APPEND | LOCK_EX);
+        if ($level === 'CRITICAL' && self::$fileLoggingEnabled && self::$logFile) {
+            $criticalLogFile = dirname(self::$logFile) . '/critical_' . date('Y-m-d') . '.log';
+            self::writeToFile($criticalLogFile, $formattedEntry);
         }
 
         // Log to database if enabled
@@ -150,12 +200,7 @@ class Logger
                 'created_at' => $entry['timestamp']
             ]);
         } catch (\Exception $e) {
-            // Fallback to file logging if database logging fails
-            file_put_contents(
-                ROOT_PATH . '/logs/db_error.log',
-                "Failed to log to database: " . $e->getMessage() . PHP_EOL,
-                FILE_APPEND | LOCK_EX
-            );
+            error_log('Failed to log to database: ' . $e->getMessage());
         }
     }
 

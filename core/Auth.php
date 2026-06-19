@@ -10,6 +10,39 @@ class Auth
     private static ?array $user = null;
     private static ?array $admin = null;
 
+    /**
+     * Resolve the canonical user identifier from a user row or JWT payload.
+     */
+    private static function resolveUserId(array $user): int
+    {
+        if (!empty($user['user_id'])) {
+            return (int) $user['user_id'];
+        }
+
+        if (!empty($user['id'])) {
+            return (int) $user['id'];
+        }
+
+        throw new \Exception('User record is missing an identifier');
+    }
+
+    /**
+     * Backfill user_id from id when the column exists but was not set on insert.
+     */
+    private static function ensureUserRecord(array $user): array
+    {
+        if (
+            empty($user['user_id'])
+            && !empty($user['id'])
+            && Database::columnExists('users', 'user_id')
+        ) {
+            Database::update('users', ['user_id' => $user['id']], 'id = ?', [$user['id']]);
+            $user['user_id'] = $user['id'];
+        }
+
+        return $user;
+    }
+
     private static function requestExpectsJson(): bool
     {
         $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
@@ -155,15 +188,18 @@ class Auth
             throw new \Exception('Invalid credentials');
         }
 
+        $user = self::ensureUserRecord($user);
+        $userId = self::resolveUserId($user);
+
         // Check password
         if (!password_verify($password, $user['password'])) {
             // Log failed login attempt
-            self::logLoginAttempt($user['user_id'], false);
+            self::logLoginAttempt($userId, false);
             throw new \Exception('Invalid credentials');
         }
 
         // Check if account is locked due to too many attempts
-        if (self::isAccountLocked($user['user_id'])) {
+        if (self::isAccountLocked($userId)) {
             throw new \Exception('Account temporarily locked due to too many failed attempts');
         }
 
@@ -182,14 +218,14 @@ class Auth
             'users',
             ['last_login_at' => date('Y-m-d H:i:s')],
             'user_id = ?',
-            [$user['user_id']]
+            [$userId]
         );
 
         // Log successful login
-        self::logLoginAttempt($user['user_id'], true);
+        self::logLoginAttempt($userId, true);
 
         // Clear failed login attempts
-        self::clearFailedAttempts($user['user_id']);
+        self::clearFailedAttempts($userId);
 
         self::$user = $user;
 
@@ -276,12 +312,12 @@ class Auth
         }
 
         // Check if username exists
-        if (Database::fetch("SELECT user_id FROM users WHERE username = ?", [$data['username']])) {
+        if (Database::fetch("SELECT id FROM users WHERE username = ?", [$data['username']])) {
             throw new \Exception('Username already exists');
         }
 
         // Check if email exists
-        if (Database::fetch("SELECT user_id FROM users WHERE email = ?", [$data['email']])) {
+        if (Database::fetch("SELECT id FROM users WHERE email = ?", [$data['email']])) {
             throw new \Exception('Email already exists');
         }
 
@@ -292,11 +328,11 @@ class Auth
         $referredBy = null;
         if (!empty($data['referral_code'])) {
             $referrer = Database::fetch(
-                "SELECT user_id FROM users WHERE referral_code = ?",
+                "SELECT id, user_id FROM users WHERE referral_code = ?",
                 [$data['referral_code']]
             );
             if ($referrer) {
-                $referredBy = $referrer['user_id'];
+                $referredBy = self::resolveUserId(self::ensureUserRecord($referrer));
             }
         }
 
@@ -306,7 +342,7 @@ class Auth
         $requireVerification = (bool) Config::get('security.require_email_verification');
 
         // Insert user
-        $userId = Database::insert('users', [
+        $insertId = Database::insert('users', [
             'username' => $data['username'],
             'email' => $data['email'],
             'password' => $hashedPassword,
@@ -317,12 +353,24 @@ class Auth
             'email_verified' => $requireVerification ? 0 : 1
         ]);
 
+        if ($insertId <= 0) {
+            throw new \Exception('Failed to create the new account.');
+        }
+
+        // Keep user_id in sync with id when both columns exist
+        if (Database::columnExists('users', 'user_id')) {
+            Database::update('users', ['user_id' => $insertId], 'id = ?', [$insertId]);
+        }
+
         // Get created user
-        $user = Database::fetch("SELECT * FROM users WHERE id = ?", [$userId]);
+        $user = Database::fetch("SELECT * FROM users WHERE id = ?", [$insertId]);
 
         if (!$user) {
             throw new \Exception('Failed to load the newly created account.');
         }
+
+        $user = self::ensureUserRecord($user);
+        $userId = self::resolveUserId($user);
 
         // Create referral record if applicable
         if ($referredBy) {
@@ -347,7 +395,7 @@ class Auth
                 self::sendVerificationEmail($user);
             } catch (\Throwable $e) {
                 Logger::error('Verification email could not be sent', [
-                    'user_id' => $user['user_id'] ?? null,
+                    'user_id' => self::resolveUserId($user),
                     'error' => $e->getMessage()
                 ]);
             }
@@ -423,7 +471,11 @@ class Auth
             return null;
         }
 
-        return self::$user['user_id'] ?? null;
+        try {
+            return self::resolveUserId(self::$user);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -445,7 +497,7 @@ class Auth
     {
         $payload = [
             'type' => 'user',
-            'user_id' => $user['user_id'],
+            'user_id' => self::resolveUserId($user),
             'username' => $user['username'],
             'email' => $user['email'],
             'iat' => time(),
@@ -491,7 +543,7 @@ class Auth
     {
         do {
             $code = strtoupper(substr(md5(uniqid()), 0, 8));
-        } while (Database::fetch("SELECT user_id FROM users WHERE referral_code = ?", [$code]));
+        } while (Database::fetch("SELECT id FROM users WHERE referral_code = ?", [$code]));
 
         return $code;
     }
@@ -523,7 +575,7 @@ class Auth
         }
 
         Database::insert('email_verifications', [
-            'user_id' => $user['user_id'],
+            'user_id' => self::resolveUserId($user),
             'token' => $token,
             'expires_at' => date('Y-m-d H:i:s', time() + 3600) // 1 hour
         ]);
