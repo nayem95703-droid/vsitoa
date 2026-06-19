@@ -318,7 +318,7 @@ class Auth
         ]);
 
         // Get created user
-        $user = Database::fetch("SELECT * FROM users WHERE user_id = ?", [$userId]);
+        $user = Database::fetch("SELECT * FROM users WHERE id = ?", [$userId]);
 
         if (!$user) {
             throw new \Exception('Failed to load the newly created account.');

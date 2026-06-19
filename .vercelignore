@@ -1,0 +1,21 @@
+# Don't ignore these critical folders
+!vendor/
+!app/
+!core/
+!database/
+!routes/
+!views/
+!assets/
+
+# Ignore only non-essential files
+.git
+.env.example
+*.md
+node_modules
+.gitignore
+composer.lock
+phpunit.xml
+.DS_Store
+*.log
+logs/
+tests/
