@@ -613,11 +613,11 @@ class Auth
     {
         $request = new Request();
         
-        Database::insert('user_logins', [
+        Database::insert('user_login_log', [
             'user_id' => $userId,
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'success' => $success
+            'login_status' => $success ? 'success' : 'failed'
         ]);
     }
 
@@ -630,8 +630,8 @@ class Auth
         $lockoutTime = max(1, (int) Config::get('security.login_lockout_time'));
 
         $recentFailures = Database::fetchColumn(
-            "SELECT COUNT(*) FROM user_logins 
-             WHERE user_id = ? AND success = FALSE 
+            "SELECT COUNT(*) FROM user_login_log 
+             WHERE user_id = ? AND login_status = 'failed' 
              AND login_time > DATE_SUB(NOW(), INTERVAL {$lockoutTime} SECOND)",
             [$userId]
         );
@@ -645,8 +645,8 @@ class Auth
     private static function clearFailedAttempts(int $userId): void
     {
         Database::delete(
-            'user_logins',
-            'user_id = ? AND success = FALSE',
+            'user_login_log',
+            'user_id = ? AND login_status = \'failed\'',
             [$userId]
         );
     }
