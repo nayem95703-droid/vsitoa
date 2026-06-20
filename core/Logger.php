@@ -5,7 +5,6 @@ namespace Core;
 class Logger
 {
     private static ?string $logFile = null;
-    private static bool $fileLoggingEnabled = true;
     private static array $levels = [
         'DEBUG' => 0,
         'INFO' => 1,
@@ -19,83 +18,18 @@ class Logger
      */
     public static function initialize(): void
     {
-        $logDir = self::resolveLogDirectory();
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
 
-        if ($logDir === null) {
-            self::$fileLoggingEnabled = false;
-            self::$logFile = null;
-            return;
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
         }
 
         if (!is_dir($logDir)) {
-            $prev = error_reporting(0);
-            $created = mkdir($logDir, 0755, true);
-            error_reporting($prev);
-            if (!$created && !is_dir($logDir)) {
-                self::$fileLoggingEnabled = false;
-                self::$logFile = null;
-                return;
-            }
-        }
-
-        if (!is_writable($logDir)) {
-            self::$fileLoggingEnabled = false;
-            self::$logFile = null;
+            self::$logFile = '';
             return;
         }
 
-        self::$fileLoggingEnabled = true;
         self::$logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
-    }
-
-    /**
-     * Pick a writable log directory for local and serverless runtimes.
-     */
-    private static function resolveLogDirectory(): ?string
-    {
-        $isServerless = getenv('VERCEL')
-            || getenv('VERCEL_ENV')
-            || getenv('AWS_LAMBDA_FUNCTION_NAME')
-            || getenv('AWS_EXECUTION_ENV');
-
-        if ($isServerless) {
-            return self::ensureTempLogDir();
-        }
-
-        $defaultDir = ROOT_PATH . '/logs';
-        if (self::ensureDir($defaultDir)) {
-            return $defaultDir;
-        }
-
-        if (!is_writable(ROOT_PATH)) {
-            return self::ensureTempLogDir();
-        }
-
-        return null;
-    }
-
-    private static function ensureTempLogDir(): ?string
-    {
-        $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/vsitoa_logs';
-        if (self::ensureDir($tmpDir)) {
-            return $tmpDir;
-        }
-        $fallback = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
-        if (is_writable($fallback)) {
-            return $fallback;
-        }
-        return null;
-    }
-
-    private static function ensureDir(string $dir): bool
-    {
-        if (is_dir($dir)) {
-            return true;
-        }
-        $prev = error_reporting(0);
-        $created = mkdir($dir, 0755, true);
-        error_reporting($prev);
-        return $created || is_dir($dir);
     }
 
     /**
@@ -157,7 +91,7 @@ class Logger
             self::initialize();
         }
 
-        if (!self::$fileLoggingEnabled && self::$logFile === null) {
+        if (empty(self::$logFile)) {
             return;
         }
 
@@ -184,18 +118,12 @@ class Logger
         $formattedEntry = self::formatLogEntry($logEntry);
 
         // Write to file
-        if (self::$fileLoggingEnabled && self::$logFile !== null) {
-            $prev = error_reporting(0);
-            file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
-            error_reporting($prev);
-        }
+        file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
 
         // Also log critical errors to separate file
-        if ($level === 'CRITICAL' && self::$logFile !== null) {
+        if ($level === 'CRITICAL') {
             $criticalLogFile = dirname(self::$logFile) . '/critical_' . date('Y-m-d') . '.log';
-            $prev = error_reporting(0);
             file_put_contents($criticalLogFile, $formattedEntry, FILE_APPEND | LOCK_EX);
-            error_reporting($prev);
         }
 
         // Log to database if enabled
@@ -385,10 +313,7 @@ class Logger
      */
     public static function getRecentLogs(int $limit = 100, ?string $level = null): array
     {
-        $logDir = self::resolveLogDirectory();
-        if ($logDir === null) {
-            return [];
-        }
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
         $logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
         
         if (!file_exists($logFile)) {
@@ -414,8 +339,8 @@ class Logger
      */
     public static function cleanOldLogs(int $days = 30): void
     {
-        $logDir = self::resolveLogDirectory();
-        if ($logDir === null || !is_dir($logDir)) {
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        if (!is_dir($logDir)) {
             return;
         }
         $cutoffTime = time() - ($days * 24 * 60 * 60);
@@ -433,10 +358,7 @@ class Logger
     public static function getStatistics(?string $date = null): array
     {
         $date = $date ?? date('Y-m-d');
-        $logDir = self::resolveLogDirectory();
-        if ($logDir === null) {
-            return [];
-        }
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
         $logFile = $logDir . "/app_{$date}.log";
         
         if (!file_exists($logFile)) {
@@ -501,10 +423,7 @@ class Logger
         $interval = new \DateInterval('P1D');
         $period = new \DatePeriod($start, $interval, $end);
 
-        $logDir = self::resolveLogDirectory();
-        if ($logDir === null) {
-            return '';
-        }
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
 
         foreach ($period as $date) {
             $logFile = $logDir . '/app_' . $date->format('Y-m-d') . '.log';
@@ -517,6 +436,10 @@ class Logger
                     }
                 }
             }
+        }
+
+        if (empty(self::$logFile)) {
+            return '';
         }
 
         $exportFile = $logDir . '/export_' . date('Y-m-d_H-i-s') . '.' . $format;
