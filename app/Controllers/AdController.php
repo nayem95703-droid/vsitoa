@@ -524,7 +524,7 @@ class AdController
         // Check user agent consistency
         $userAgentCount = Database::fetchColumn("
             SELECT COUNT(*) 
-            FROM user_logins 
+            FROM user_login_log 
             WHERE user_id = ? 
             AND user_agent = ?
             AND login_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)
