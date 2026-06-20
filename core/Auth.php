@@ -31,13 +31,22 @@ class Auth
      */
     private static function ensureUserRecord(array $user): array
     {
-        if (
-            empty($user['user_id'])
-            && !empty($user['id'])
-            && Database::columnExists('users', 'user_id')
-        ) {
+        if (!empty($user['user_id'])) {
+            return $user;
+        }
+
+        if (empty($user['id'])) {
+            return $user;
+        }
+
+        try {
             Database::update('users', ['user_id' => $user['id']], 'id = ?', [$user['id']]);
             $user['user_id'] = $user['id'];
+        } catch (\Throwable $e) {
+            Logger::error('Failed to backfill user_id', [
+                'id' => $user['id'],
+                'error' => $e->getMessage()
+            ]);
         }
 
         return $user;
@@ -357,9 +366,14 @@ class Auth
             throw new \Exception('Failed to create the new account.');
         }
 
-        // Keep user_id in sync with id when both columns exist
-        if (Database::columnExists('users', 'user_id')) {
+        // Keep user_id in sync with id
+        try {
             Database::update('users', ['user_id' => $insertId], 'id = ?', [$insertId]);
+        } catch (\Throwable $e) {
+            Logger::warning('Could not backfill user_id on registration', [
+                'insert_id' => $insertId,
+                'error' => $e->getMessage()
+            ]);
         }
 
         // Get created user

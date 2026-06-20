@@ -27,10 +27,15 @@ class Logger
             return;
         }
 
-        if (!is_dir($logDir) && !@mkdir($logDir, 0755, true) && !is_dir($logDir)) {
-            self::$fileLoggingEnabled = false;
-            self::$logFile = null;
-            return;
+        if (!is_dir($logDir)) {
+            $prev = error_reporting(0);
+            $created = mkdir($logDir, 0755, true);
+            error_reporting($prev);
+            if (!$created && !is_dir($logDir)) {
+                self::$fileLoggingEnabled = false;
+                self::$logFile = null;
+                return;
+            }
         }
 
         if (!is_writable($logDir)) {
@@ -48,9 +53,14 @@ class Logger
      */
     private static function resolveLogDirectory(): ?string
     {
-        if (getenv('VERCEL') || getenv('VERCEL_ENV')) {
-            $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/vsitoa_logs';
-            return $tmpDir;
+        // Detect serverless / read-only environments (Vercel, AWS Lambda, etc.)
+        $isServerless = getenv('VERCEL')
+            || getenv('VERCEL_ENV')
+            || getenv('AWS_LAMBDA_FUNCTION_NAME')
+            || getenv('AWS_EXECUTION_ENV');
+
+        if ($isServerless) {
+            return self::ensureTempLogDir();
         }
 
         $configuredDir = Config::get('log.directory');
@@ -58,7 +68,42 @@ class Logger
             return $configuredDir;
         }
 
-        return ROOT_PATH . '/logs';
+        // Try project logs directory
+        $defaultDir = ROOT_PATH . '/logs';
+        if (self::ensureDir($defaultDir)) {
+            return $defaultDir;
+        }
+
+        // Fallback: if ROOT_PATH is not writable (Vercel, etc.), use temp
+        if (!is_writable(ROOT_PATH)) {
+            return self::ensureTempLogDir();
+        }
+
+        return null;
+    }
+
+    private static function ensureTempLogDir(): ?string
+    {
+        $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/vsitoa_logs';
+        if (self::ensureDir($tmpDir)) {
+            return $tmpDir;
+        }
+        $fallback = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
+        if (is_writable($fallback)) {
+            return $fallback;
+        }
+        return null;
+    }
+
+    private static function ensureDir(string $dir): bool
+    {
+        if (is_dir($dir)) {
+            return true;
+        }
+        $prev = error_reporting(0);
+        $created = mkdir($dir, 0755, true);
+        error_reporting($prev);
+        return $created || is_dir($dir);
     }
 
     /**
@@ -70,7 +115,9 @@ class Logger
             return;
         }
 
-        @file_put_contents($path, $contents, FILE_APPEND | LOCK_EX);
+        $prev = error_reporting(0);
+        file_put_contents($path, $contents, FILE_APPEND | LOCK_EX);
+        error_reporting($prev);
     }
 
     /**
@@ -349,11 +396,27 @@ class Logger
     }
 
     /**
+     * Resolve the current log file path (or the date-specific one).
+     */
+    private static function resolveLogFilePath(?string $date = null): ?string
+    {
+        $dir = self::resolveLogDirectory();
+        if ($dir === null) {
+            return null;
+        }
+        $d = $date ?? date('Y-m-d');
+        return $dir . '/app_' . $d . '.log';
+    }
+
+    /**
      * Get recent logs
      */
     public static function getRecentLogs(int $limit = 100, ?string $level = null): array
     {
-        $logFile = ROOT_PATH . '/logs/app_' . date('Y-m-d') . '.log';
+        $logFile = self::resolveLogFilePath();
+        if ($logFile === null) {
+            return [];
+        }
         
         if (!file_exists($logFile)) {
             return [];
@@ -378,12 +441,15 @@ class Logger
      */
     public static function cleanOldLogs(int $days = 30): void
     {
-        $logDir = ROOT_PATH . '/logs';
+        $logDir = self::resolveLogDirectory();
+        if ($logDir === null) {
+            return;
+        }
         $cutoffTime = time() - ($days * 24 * 60 * 60);
 
         foreach (glob($logDir . '/*.log') as $file) {
             if (filemtime($file) < $cutoffTime) {
-                unlink($file);
+                @unlink($file);
             }
         }
     }
@@ -394,7 +460,10 @@ class Logger
     public static function getStatistics(?string $date = null): array
     {
         $date = $date ?? date('Y-m-d');
-        $logFile = ROOT_PATH . "/logs/app_{$date}.log";
+        $logFile = self::resolveLogFilePath($date);
+        if ($logFile === null) {
+            return [];
+        }
         
         if (!file_exists($logFile)) {
             return [];
@@ -459,8 +528,8 @@ class Logger
         $period = new \DatePeriod($start, $interval, $end);
 
         foreach ($period as $date) {
-            $logFile = ROOT_PATH . '/logs/app_' . $date->format('Y-m-d') . '.log';
-            if (file_exists($logFile)) {
+            $logFile = self::resolveLogFilePath($date->format('Y-m-d'));
+            if ($logFile !== null && file_exists($logFile)) {
                 $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 foreach ($lines as $line) {
                     $log = json_decode($line, true);
@@ -471,8 +540,13 @@ class Logger
             }
         }
 
-        $exportFile = ROOT_PATH . '/logs/export_' . date('Y-m-d_H-i-s') . '.' . $format;
+        $exportDir = self::resolveLogDirectory() ?? ROOT_PATH . '/logs';
+        if (!self::ensureDir($exportDir)) {
+            return '';
+        }
+        $exportFile = $exportDir . '/export_' . date('Y-m-d_H-i-s') . '.' . $format;
 
+        $prev = error_reporting(0);
         if ($format === 'json') {
             file_put_contents($exportFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         } elseif ($format === 'csv') {
@@ -485,6 +559,7 @@ class Logger
             }
             fclose($fp);
         }
+        error_reporting($prev);
 
         return $exportFile;
     }

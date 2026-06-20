@@ -21,14 +21,7 @@ class VerifiedController
 
     private function resolveUsersPrimaryKeyColumn(): string
     {
-        if (Database::columnExists('users', 'user_id')) {
-            return 'user_id';
-        }
-        if (Database::columnExists('users', 'id')) {
-            return 'id';
-        }
-
-        return 'id';
+        return 'user_id';
     }
 
     private function ensureVerificationRequestsTableExists(): void
