@@ -5,21 +5,6 @@
  * Handles all web page requests
  */
 
-// Debug: identify the exact Logger.php being executed
-$router->get('/debug-logger', function($request, $response) {
-    $loggerPath = realpath(__DIR__ . '/../core/Logger.php');
-    echo "realpath: " . ($loggerPath ?: 'NOT FOUND') . "\n";
-    if ($loggerPath) {
-        echo "filemtime: " . filemtime($loggerPath) . " (" . date('Y-m-d H:i:s', filemtime($loggerPath)) . ")\n";
-        echo "md5: " . md5_file($loggerPath) . "\n";
-        $lines = file($loggerPath);
-        echo "total lines: " . count($lines) . "\n";
-        echo "line 23: " . rtrim($lines[22] ?? 'N/A') . "\n";
-        echo "git commit: 0f11d4d\n";
-    }
-    exit;
-});
-
 // Home page
 $router->get('/', function($request, $response) {
     include ROOT_PATH . '/views/home.php';
