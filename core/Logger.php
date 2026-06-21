@@ -5,7 +5,6 @@ namespace Core;
 class Logger
 {
     private static ?string $logFile = null;
-    private static bool $fileLoggingEnabled = true;
     private static array $levels = [
         'DEBUG' => 0,
         'INFO' => 1,
@@ -14,162 +13,53 @@ class Logger
         'CRITICAL' => 4
     ];
 
-    /**
-     * Initialize logger
-     */
     public static function initialize(): void
     {
-        $logDir = self::resolveLogDirectory();
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
 
-        if ($logDir === null) {
-            self::$fileLoggingEnabled = false;
-            self::$logFile = null;
-            return;
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
         }
 
         if (!is_dir($logDir)) {
-            $prev = error_reporting(0);
-            $created = mkdir($logDir, 0755, true);
-            error_reporting($prev);
-            if (!$created && !is_dir($logDir)) {
-                self::$fileLoggingEnabled = false;
-                self::$logFile = null;
-                return;
-            }
-        }
-
-        if (!is_writable($logDir)) {
-            self::$fileLoggingEnabled = false;
-            self::$logFile = null;
+            self::$logFile = '';
             return;
         }
 
-        self::$fileLoggingEnabled = true;
         self::$logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
     }
 
-    /**
-     * Pick a writable log directory for local and serverless runtimes.
-     */
-    private static function resolveLogDirectory(): ?string
-    {
-        // Detect serverless / read-only environments (Vercel, AWS Lambda, etc.)
-        $isServerless = getenv('VERCEL')
-            || getenv('VERCEL_ENV')
-            || getenv('AWS_LAMBDA_FUNCTION_NAME')
-            || getenv('AWS_EXECUTION_ENV');
-
-        if ($isServerless) {
-            return self::ensureTempLogDir();
-        }
-
-        $configuredDir = Config::get('log.directory');
-        if (is_string($configuredDir) && $configuredDir !== '') {
-            return $configuredDir;
-        }
-
-        // Try project logs directory
-        $defaultDir = ROOT_PATH . '/logs';
-        if (self::ensureDir($defaultDir)) {
-            return $defaultDir;
-        }
-
-        // Fallback: if ROOT_PATH is not writable (Vercel, etc.), use temp
-        if (!is_writable(ROOT_PATH)) {
-            return self::ensureTempLogDir();
-        }
-
-        return null;
-    }
-
-    private static function ensureTempLogDir(): ?string
-    {
-        $tmpDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/vsitoa_logs';
-        if (self::ensureDir($tmpDir)) {
-            return $tmpDir;
-        }
-        $fallback = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
-        if (is_writable($fallback)) {
-            return $fallback;
-        }
-        return null;
-    }
-
-    private static function ensureDir(string $dir): bool
-    {
-        if (is_dir($dir)) {
-            return true;
-        }
-        $prev = error_reporting(0);
-        $created = mkdir($dir, 0755, true);
-        error_reporting($prev);
-        return $created || is_dir($dir);
-    }
-
-    /**
-     * Write to a log file when the filesystem is writable.
-     */
-    private static function writeToFile(string $path, string $contents): void
-    {
-        if (!self::$fileLoggingEnabled) {
-            return;
-        }
-
-        $prev = error_reporting(0);
-        file_put_contents($path, $contents, FILE_APPEND | LOCK_EX);
-        error_reporting($prev);
-    }
-
-    /**
-     * Log debug message
-     */
     public static function debug(string $message, array $context = []): void
     {
         self::log('DEBUG', $message, $context);
     }
 
-    /**
-     * Log info message
-     */
     public static function info(string $message, array $context = []): void
     {
         self::log('INFO', $message, $context);
     }
 
-    /**
-     * Log warning message
-     */
     public static function warning(string $message, array $context = []): void
     {
         self::log('WARNING', $message, $context);
     }
 
-    /**
-     * Log error message
-     */
     public static function error(string $message, array $context = []): void
     {
         self::log('ERROR', $message, $context);
     }
 
-    /**
-     * Log critical message
-     */
     public static function critical(string $message, array $context = []): void
     {
         self::log('CRITICAL', $message, $context);
     }
 
-    /**
-     * Log message with level
-     */
     public static function log(string $level, string $message, array $context = []): void
     {
         if (!isset(self::$levels[$level])) {
             $level = 'INFO';
         }
 
-        // Check if logging is enabled for this level
         $minLevel = Config::get('app.debug') ? 'DEBUG' : 'INFO';
         if (self::$levels[$level] < self::$levels[$minLevel]) {
             return;
@@ -179,12 +69,15 @@ class Logger
             self::initialize();
         }
 
+        if (empty(self::$logFile)) {
+            return;
+        }
+
         $timestamp = date('Y-m-d H:i:s');
         $request = new Request();
         $userId = Auth::check() ? Auth::id() : null;
         $adminId = Auth::adminCheck() ? Auth::adminId() : null;
 
-        // Build log entry
         $logEntry = [
             'timestamp' => $timestamp,
             'level' => $level,
@@ -198,39 +91,33 @@ class Logger
             'method' => $request->getMethod()
         ];
 
-        // Format log entry
         $formattedEntry = self::formatLogEntry($logEntry);
 
-        if (self::$fileLoggingEnabled && self::$logFile) {
-            self::writeToFile(self::$logFile, $formattedEntry);
-        } else {
-            error_log('[' . $level . '] ' . $message . ' ' . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        try {
+            file_put_contents(self::$logFile, $formattedEntry, FILE_APPEND | LOCK_EX);
+        } catch (\Throwable $e) {
+            return;
         }
 
-        // Also log critical errors to separate file
-        if ($level === 'CRITICAL' && self::$fileLoggingEnabled && self::$logFile) {
+        if ($level === 'CRITICAL') {
             $criticalLogFile = dirname(self::$logFile) . '/critical_' . date('Y-m-d') . '.log';
-            self::writeToFile($criticalLogFile, $formattedEntry);
+            try {
+                file_put_contents($criticalLogFile, $formattedEntry, FILE_APPEND | LOCK_EX);
+            } catch (\Throwable $e) {
+            }
         }
 
-        // Log to database if enabled
         if (Config::get('log.database', false)) {
             self::logToDatabase($logEntry);
         }
     }
 
-    /**
-     * Format log entry
-     */
     private static function formatLogEntry(array $entry): string
     {
         $json = json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         return $json . PHP_EOL;
     }
 
-    /**
-     * Log to database
-     */
     private static function logToDatabase(array $entry): void
     {
         try {
@@ -247,13 +134,9 @@ class Logger
                 'created_at' => $entry['timestamp']
             ]);
         } catch (\Exception $e) {
-            error_log('Failed to log to database: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Log user activity
-     */
     public static function logUserActivity(string $action, array $details = []): void
     {
         if (!Auth::check()) {
@@ -261,14 +144,13 @@ class Logger
         }
 
         $user = Auth::user();
-        
+
         self::info("User activity: {$action}", array_merge([
             'user_id' => $user['user_id'],
             'username' => $user['username'],
             'action' => $action
         ], $details));
 
-        // Also log to user activity table
         try {
             Database::insert('user_activities', [
                 'user_id' => $user['user_id'],
@@ -279,13 +161,9 @@ class Logger
                 'created_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {
-            // Ignore database errors for activity logging
         }
     }
 
-    /**
-     * Log admin activity
-     */
     public static function logAdminActivity(string $action, array $details = []): void
     {
         if (!Auth::adminCheck()) {
@@ -293,7 +171,7 @@ class Logger
         }
 
         $admin = Auth::admin();
-        
+
         self::info("Admin activity: {$action}", array_merge([
             'admin_id' => $admin['admin_id'],
             'username' => $admin['username'],
@@ -301,7 +179,6 @@ class Logger
             'action' => $action
         ], $details));
 
-        // Also log to admin logs table
         try {
             Database::insert('admin_logs', [
                 'admin_id' => $admin['admin_id'],
@@ -312,17 +189,13 @@ class Logger
                 'created_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {
-            // Ignore database errors for admin logging
         }
     }
 
-    /**
-     * Log security event
-     */
     public static function logSecurity(string $event, array $details = []): void
     {
         $request = new Request();
-        
+
         self::warning("Security event: {$event}", array_merge([
             'event' => $event,
             'ip' => $request->ip(),
@@ -331,7 +204,6 @@ class Logger
             'user_id' => Auth::check() ? Auth::id() : null
         ], $details));
 
-        // Also log to security logs table
         try {
             Database::insert('security_logs', [
                 'event' => $event,
@@ -343,17 +215,13 @@ class Logger
                 'created_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {
-            // Ignore database errors for security logging
         }
     }
 
-    /**
-     * Log API request
-     */
     public static function logApiRequest(string $endpoint, string $method, int $statusCode, float $responseTime, array $details = []): void
     {
         $request = new Request();
-        
+
         self::info("API Request: {$method} {$endpoint}", [
             'endpoint' => $endpoint,
             'method' => $method,
@@ -364,7 +232,6 @@ class Logger
             'details' => $details
         ]);
 
-        // Also log to API logs table
         try {
             Database::insert('api_logs', [
                 'endpoint' => $endpoint,
@@ -378,13 +245,9 @@ class Logger
                 'created_at' => date('Y-m-d H:i:s')
             ]);
         } catch (\Exception $e) {
-            // Ignore database errors for API logging
         }
     }
 
-    /**
-     * Log performance metrics
-     */
     public static function logPerformance(string $operation, float $duration, array $details = []): void
     {
         self::debug("Performance: {$operation}", array_merge([
@@ -395,29 +258,11 @@ class Logger
         ], $details));
     }
 
-    /**
-     * Resolve the current log file path (or the date-specific one).
-     */
-    private static function resolveLogFilePath(?string $date = null): ?string
-    {
-        $dir = self::resolveLogDirectory();
-        if ($dir === null) {
-            return null;
-        }
-        $d = $date ?? date('Y-m-d');
-        return $dir . '/app_' . $d . '.log';
-    }
-
-    /**
-     * Get recent logs
-     */
     public static function getRecentLogs(int $limit = 100, ?string $level = null): array
     {
-        $logFile = self::resolveLogFilePath();
-        if ($logFile === null) {
-            return [];
-        }
-        
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        $logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
+
         if (!file_exists($logFile)) {
             return [];
         }
@@ -436,35 +281,27 @@ class Logger
         return $logs;
     }
 
-    /**
-     * Clean old log files
-     */
     public static function cleanOldLogs(int $days = 30): void
     {
-        $logDir = self::resolveLogDirectory();
-        if ($logDir === null) {
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        if (!is_dir($logDir)) {
             return;
         }
         $cutoffTime = time() - ($days * 24 * 60 * 60);
 
         foreach (glob($logDir . '/*.log') as $file) {
             if (filemtime($file) < $cutoffTime) {
-                @unlink($file);
+                unlink($file);
             }
         }
     }
 
-    /**
-     * Get log statistics
-     */
     public static function getStatistics(?string $date = null): array
     {
         $date = $date ?? date('Y-m-d');
-        $logFile = self::resolveLogFilePath($date);
-        if ($logFile === null) {
-            return [];
-        }
-        
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        $logFile = $logDir . "/app_{$date}.log";
+
         if (!file_exists($logFile)) {
             return [];
         }
@@ -484,41 +321,32 @@ class Logger
             if (!$log) continue;
 
             $stats['total']++;
-            
-            // Count by level
+
             $level = $log['level'];
             $stats['by_level'][$level] = ($stats['by_level'][$level] ?? 0) + 1;
 
-            // Count by hour
             $hour = date('H', strtotime($log['timestamp']));
             $stats['by_hour'][$hour] = ($stats['by_hour'][$hour] ?? 0) + 1;
 
-            // Top IPs
             $ip = $log['ip'] ?? 'unknown';
             $stats['top_ips'][$ip] = ($stats['top_ips'][$ip] ?? 0) + 1;
 
-            // Top users
             if (!empty($log['user_id'])) {
                 $userId = $log['user_id'];
                 $stats['top_users'][$userId] = ($stats['top_users'][$userId] ?? 0) + 1;
             }
         }
 
-        // Sort arrays
         arsort($stats['top_ips']);
         arsort($stats['top_users']);
         ksort($stats['by_hour']);
 
-        // Limit top arrays
         $stats['top_ips'] = array_slice($stats['top_ips'], 0, 10, true);
         $stats['top_users'] = array_slice($stats['top_users'], 0, 10, true);
 
         return $stats;
     }
 
-    /**
-     * Export logs to file
-     */
     public static function exportLogs(string $startDate, string $endDate, string $format = 'json'): string
     {
         $logs = [];
@@ -527,9 +355,11 @@ class Logger
         $interval = new \DateInterval('P1D');
         $period = new \DatePeriod($start, $interval, $end);
 
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+
         foreach ($period as $date) {
-            $logFile = self::resolveLogFilePath($date->format('Y-m-d'));
-            if ($logFile !== null && file_exists($logFile)) {
+            $logFile = $logDir . '/app_' . $date->format('Y-m-d') . '.log';
+            if (file_exists($logFile)) {
                 $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 foreach ($lines as $line) {
                     $log = json_decode($line, true);
@@ -540,26 +370,28 @@ class Logger
             }
         }
 
-        $exportDir = self::resolveLogDirectory() ?? ROOT_PATH . '/logs';
-        if (!self::ensureDir($exportDir)) {
+        if (empty(self::$logFile)) {
             return '';
         }
-        $exportFile = $exportDir . '/export_' . date('Y-m-d_H-i-s') . '.' . $format;
 
-        $prev = error_reporting(0);
-        if ($format === 'json') {
-            file_put_contents($exportFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        } elseif ($format === 'csv') {
-            $fp = fopen($exportFile, 'w');
-            if (!empty($logs)) {
-                fputcsv($fp, array_keys($logs[0]));
-                foreach ($logs as $log) {
-                    fputcsv($fp, $log);
+        $exportFile = $logDir . '/export_' . date('Y-m-d_H-i-s') . '.' . $format;
+
+        try {
+            if ($format === 'json') {
+                file_put_contents($exportFile, json_encode($logs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            } elseif ($format === 'csv') {
+                $fp = fopen($exportFile, 'w');
+                if (!empty($logs)) {
+                    fputcsv($fp, array_keys($logs[0]));
+                    foreach ($logs as $log) {
+                        fputcsv($fp, $log);
+                    }
                 }
+                fclose($fp);
             }
-            fclose($fp);
+        } catch (\Throwable $e) {
+            return '';
         }
-        error_reporting($prev);
 
         return $exportFile;
     }
