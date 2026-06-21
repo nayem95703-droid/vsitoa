@@ -3,6 +3,26 @@ declare(strict_types=1);
 
 session_start();
 
+// Debug endpoint — identify exact runtime files
+if (($_SERVER['REQUEST_URI'] ?? '') === '/debug-runtime') {
+    $loggerPath = realpath(__DIR__ . '/core/Logger.php');
+    header('Content-Type: application/json');
+    echo json_encode([
+        'entry_point' => __FILE__,
+        'cwd' => getcwd(),
+        'root' => __DIR__,
+        'logger_realpath' => $loggerPath ?: 'NOT FOUND',
+        'logger_exists' => $loggerPath ? file_exists($loggerPath) : false,
+        'logger_line23' => $loggerPath ? rtrim(file($loggerPath)[22] ?? 'N/A') : 'N/A',
+        'logger_md5' => $loggerPath ? md5_file($loggerPath) : 'N/A',
+        'logger_mtime' => $loggerPath ? filemtime($loggerPath) : 'N/A',
+        'server_uri' => $_SERVER['REQUEST_URI'] ?? 'N/A',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'N/A',
+        'php_self' => $_SERVER['PHP_SELF'] ?? 'N/A',
+    ]);
+    exit;
+}
+
 define('ROOT_PATH', __DIR__);
 
 require_once ROOT_PATH . '/vendor/autoload.php';
