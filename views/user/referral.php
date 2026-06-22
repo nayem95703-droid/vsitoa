@@ -334,7 +334,7 @@ Best regards,
                                         <span class="badge bg-<?= $color ?>"><?= ucfirst($referral['status']) ?></span>
                                     </td>
                                     <td><?= date('M j, Y', strtotime($referral['created_at'])) ?></td>
-                                    <td><?= $referral['last_login_at'] ? date('M j, Y', strtotime($referral['last_login_at'])) : 'Never' ?></td>
+                                    <td><?= $referral['last_login_at'] ? date('M j, Y', strtotime($referral['last_login_at'] ?? '')) : 'Never' ?></td>
                                     <td class="text-success"><?= number_format($referral['total_earned_from_user'], 8) ?> USDT</td>
                                 </tr>
                                 <?php endforeach; ?>

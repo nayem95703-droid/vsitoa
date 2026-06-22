@@ -45,7 +45,7 @@ try {
         role VARCHAR(50) DEFAULT 'superadmin',
         permissions JSON DEFAULT NULL,
         status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
-        last_login_at TIMESTAMP NULL,
+        last_login TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_username (username),

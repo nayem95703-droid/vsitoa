@@ -147,7 +147,7 @@ class ReferralController
                 u.email,
                 u.created_at,
                 u.status,
-                u.last_login_at,
+                u.last_login AS last_login_at,
                 r.level,
                 r.commission_rate,
                 COALESCE(SUM(re.amount), 0) as total_earned_from_user,
@@ -436,7 +436,7 @@ class ReferralController
                     u.email,
                     u.created_at,
                     u.status,
-                    u.last_login_at,
+                    u.last_login AS last_login_at,
                     r.level,
                     r.commission_rate,
                     COALESCE(SUM(re.amount), 0) as total_earned_from_user
