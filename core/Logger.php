@@ -15,25 +15,30 @@ class Logger
 
     public static function initialize(): void
     {
-        try {
-            $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        self::$logFile = '';
 
-            if (!is_dir($logDir)) {
-                $oldLevel = error_reporting(0);
-                @mkdir($logDir, 0755, true);
-                clearstatcache(true);
-                error_reporting($oldLevel);
-            }
+        $logDir = sys_get_temp_dir() . '/vsitoa_logs';
+        $parent = dirname($logDir);
 
-            if (!is_dir($logDir)) {
-                self::$logFile = '';
+        if (!is_writable($parent)) {
+            return;
+        }
+
+        if (!is_dir($logDir)) {
+            set_error_handler(function () { return true; }, E_WARNING);
+            $created = mkdir($logDir, 0755, true);
+            restore_error_handler();
+            clearstatcache(true, $logDir);
+            if (!$created || !is_dir($logDir)) {
                 return;
             }
-
-            self::$logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
-        } catch (\Throwable $e) {
-            self::$logFile = '';
         }
+
+        if (!is_writable($logDir)) {
+            return;
+        }
+
+        self::$logFile = $logDir . '/app_' . date('Y-m-d') . '.log';
     }
 
     public static function debug(string $message, array $context = []): void
