@@ -152,8 +152,6 @@ class AuthController
      */
     private function safeErrorMessage(\Throwable $e, string $fallback): string
     {
-        error_log(get_class($e) . ' in login: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
-
         if ($e instanceof \Exception) {
             return $e->getMessage();
         }

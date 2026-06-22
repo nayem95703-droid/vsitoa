@@ -225,7 +225,7 @@ class Auth
         // Update last login
         Database::update(
             'users',
-            ['last_login_at' => date('Y-m-d H:i:s')],
+            ['last_login' => date('Y-m-d H:i:s')],
             'user_id = ?',
             [$userId]
         );
@@ -279,7 +279,7 @@ class Auth
         // Update last login
         Database::update(
             'admins',
-            ['last_login_at' => date('Y-m-d H:i:s')],
+            ['last_login' => date('Y-m-d H:i:s')],
             'admin_id = ?',
             [$admin['admin_id']]
         );
