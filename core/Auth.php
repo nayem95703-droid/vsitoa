@@ -215,12 +215,10 @@ class Auth
         // Generate JWT token
         $token = self::generateUserToken($user);
 
-        // Store token
-        if ($remember) {
-            setcookie('jwt_token', $token, time() + (86400 * 30), '/', '', false, true);
-        } else {
-            $_SESSION['jwt_token'] = $token;
-        }
+        // Store token — always store in cookie for serverless persistence
+        $_SESSION['jwt_token'] = $token;
+        $cookieLifetime = $remember ? 86400 * 30 : 0;
+        setcookie('jwt_token', $token, $cookieLifetime > 0 ? time() + $cookieLifetime : 0, '/', '', false, true);
 
         // Update last login
         Database::update(
@@ -275,6 +273,7 @@ class Auth
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_id'] = $admin['admin_id'];
         $_SESSION['admin_username'] = $admin['username'];
+        setcookie('admin_jwt_token', $token, 0, '/', '', false, true);
 
         // Update last login
         Database::update(
