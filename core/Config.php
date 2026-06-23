@@ -28,24 +28,31 @@ class Config
                     list($key, $value) = explode('=', $line, 2);
                     $key = trim($key);
                     $value = trim($value);
-                    $_ENV[$key] = $value;
-                    $_SERVER[$key] = $value;
+                    // Don't overwrite env vars already set (e.g. by api/index.php for Vercel)
+                    if (!array_key_exists($key, $_ENV)) {
+                        $_ENV[$key] = $value;
+                        $_SERVER[$key] = $value;
+                    }
                 }
             }
         }
 
         // Set default config values
-        $envBasePath = isset($_ENV['APP_BASE_PATH']) ? trim((string) $_ENV['APP_BASE_PATH']) : '';
-        if ($envBasePath !== '') {
+        $envBasePath = array_key_exists('APP_BASE_PATH', $_ENV) ? trim((string) $_ENV['APP_BASE_PATH']) : null;
+        $hasExplicitBasePath = $envBasePath !== null;
+        if ($envBasePath !== null && $envBasePath !== '') {
             $envBasePath = '/' . ltrim($envBasePath, '/');
             $envBasePath = rtrim($envBasePath, '/');
+        }
+        if ($envBasePath === null) {
+            $envBasePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
         }
 
         self::$config = [
             'app' => [
                 'name' => $_ENV['APP_NAME'] ?? 'VSItoA',
                 'url' => $_ENV['APP_URL'] ?? 'http://localhost',
-                'base_path' => $envBasePath !== '' ? $envBasePath : rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'),
+                'base_path' => $envBasePath,
                 'env' => $_ENV['APP_ENV'] ?? 'production',
                 'debug' => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'timezone' => 'UTC',
