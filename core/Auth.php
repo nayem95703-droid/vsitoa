@@ -78,7 +78,7 @@ class Auth
      */
     public static function initialize(): void
     {
-        $headers = getallheaders();
+        $headers = self::getRequestHeaders();
         if (isset($headers['Authorization'])) {
             $authHeader = $headers['Authorization'];
             if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
@@ -104,10 +104,30 @@ class Auth
     /**
      * Get token from request
      */
+    private static function getRequestHeaders(): array
+    {
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (is_array($headers)) {
+                return $headers;
+            }
+        }
+
+        $headers = [];
+        foreach ($_SERVER as $key => $value) {
+            if (str_starts_with($key, 'HTTP_')) {
+                $headerKey = str_replace('_', '-', substr($key, 5));
+                $headerKey = ucwords(strtolower($headerKey), '-');
+                $headers[$headerKey] = $value;
+            }
+        }
+        return $headers;
+    }
+
     private static function getTokenFromRequest(): ?string
     {
         // Check Authorization header
-        $headers = getallheaders();
+        $headers = self::getRequestHeaders();
         if (isset($headers['Authorization'])) {
             $authHeader = $headers['Authorization'];
             if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {

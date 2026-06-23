@@ -1,7 +1,8 @@
 <?php
-// v4 — force fresh Vercel build cache
-// রিকোয়েস্টের ইউআরএল থেকে সাব-ফোল্ডার পরিষ্কার করা
-$request_uri = $_SERVER['REQUEST_URI'];
+// Override base path for Vercel (local .env has /vsitoa)
+$_ENV['APP_BASE_PATH'] = '';
+
+$request_uri = $_SERVER['REQUEST_URI'] ?? '/';
 $request_uri = str_replace('/vsitoa', '', $request_uri);
 $_SERVER['REQUEST_URI'] = $request_uri;
 
@@ -24,5 +25,14 @@ if ($request_uri === '/debug-runtime') {
     exit;
 }
 
-// আপনার মেইন ফোল্ডারের আসল index.php ফাইলকে কল করা
-require __DIR__ . '/../index.php';
+try {
+    require __DIR__ . '/../index.php';
+} catch (\Throwable $e) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode([
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ]);
+}
