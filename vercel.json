@@ -5,6 +5,9 @@
   },
   "routes": [
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/api/wallet/balance", "dest": "/api/wallet/balance.php" },
+    { "src": "/api/user/notifications", "dest": "/api/user/notifications.php" },
+    { "src": "/api/user/profile", "dest": "/api/user/profile.php" },
     { "src": "/(.*)", "dest": "/api/index.php" }
   ]
 }
