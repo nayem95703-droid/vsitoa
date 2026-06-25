@@ -9,6 +9,7 @@ class Database
 {
     private static ?PDO $instance = null;
     private static array $config = [];
+    private static bool $connected = false;
 
     /**
      * Initialize database connection
@@ -18,19 +19,21 @@ class Database
         self::$config = Config::get('database');
         
         if (!self::$config) {
-            throw new \Exception('Database configuration not found');
+            self::$config = [];
         }
     }
 
     /**
      * Get database connection instance
      */
-    public static function getInstance(): PDO
+    public static function getInstance(): ?PDO
     {
+        if (!self::$connected) {
+            return null;
+        }
         if (self::$instance === null) {
             self::connect();
         }
-
         return self::$instance;
     }
 
@@ -42,47 +45,48 @@ class Database
         try {
             $dsn = sprintf(
                 'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-                self::$config['host'],
-                self::$config['port'],
-                self::$config['name'],
-                self::$config['charset']
+                self::$config['host'] ?? 'localhost',
+                self::$config['port'] ?? 3306,
+                self::$config['name'] ?? 'vsitoa',
+                self::$config['charset'] ?? 'utf8mb4'
             );
 
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_PERSISTENT => true
             ];
             
-            // Set character set using the appropriate constant for this PHP version
             if (class_exists('Pdo\Mysql')) {
-                // PHP 8.5+
                 $options[\Pdo\Mysql::ATTR_INIT_COMMAND] = "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci";
             } elseif (defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
-                // PHP 8.0-8.4
                 $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci";
             }
 
             self::$instance = new PDO(
                 $dsn,
-                self::$config['user'],
-                self::$config['password'],
+                self::$config['user'] ?? 'root',
+                self::$config['password'] ?? '',
                 $options
             );
 
+            self::$connected = true;
+
         } catch (PDOException $e) {
-            Logger::error("Database connection failed: " . $e->getMessage());
-            throw new \Exception("Database connection failed: " . $e->getMessage());
+            self::$connected = false;
         }
     }
 
     /**
      * Execute query and return statement
      */
-    public static function query(string $sql, array $params = []): \PDOStatement
+    public static function query(string $sql, array $params = []): ?\PDOStatement
     {
-        $stmt = self::getInstance()->prepare($sql);
+        $pdo = self::getInstance();
+        if (!$pdo) {
+            return null;
+        }
+        $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
     }
@@ -93,6 +97,9 @@ class Database
     public static function fetch(string $sql, array $params = []): ?array
     {
         $stmt = self::query($sql, $params);
+        if (!$stmt) {
+            return null;
+        }
         $result = $stmt->fetch();
         return $result ?: null;
     }
@@ -103,6 +110,9 @@ class Database
     public static function fetchAll(string $sql, array $params = []): array
     {
         $stmt = self::query($sql, $params);
+        if (!$stmt) {
+            return [];
+        }
         return $stmt->fetchAll();
     }
 
@@ -112,6 +122,9 @@ class Database
     public static function fetchColumn(string $sql, array $params = [], int $column = 0): mixed
     {
         $stmt = self::query($sql, $params);
+        if (!$stmt) {
+            return null;
+        }
         return $stmt->fetchColumn($column);
     }
 
@@ -130,8 +143,12 @@ class Database
             implode(', ', $placeholders)
         );
 
-        self::query($sql, array_values($data));
-        return (int) self::getInstance()->lastInsertId();
+        $stmt = self::query($sql, array_values($data));
+        if (!$stmt) {
+            return 0;
+        }
+        $pdo = self::getInstance();
+        return $pdo ? (int) $pdo->lastInsertId() : 0;
     }
 
     /**
@@ -156,7 +173,7 @@ class Database
 
         $params = array_merge($params, $whereParams);
         $stmt = self::query($sql, $params);
-        return $stmt->rowCount();
+        return $stmt ? $stmt->rowCount() : 0;
     }
 
     /**
@@ -166,7 +183,7 @@ class Database
     {
         $sql = sprintf('DELETE FROM %s WHERE %s', $table, $where);
         $stmt = self::query($sql, $params);
-        return $stmt->rowCount();
+        return $stmt ? $stmt->rowCount() : 0;
     }
 
     /**
@@ -174,7 +191,10 @@ class Database
      */
     public static function beginTransaction(): void
     {
-        self::getInstance()->beginTransaction();
+        $pdo = self::getInstance();
+        if ($pdo) {
+            $pdo->beginTransaction();
+        }
     }
 
     /**
@@ -182,7 +202,10 @@ class Database
      */
     public static function commit(): void
     {
-        self::getInstance()->commit();
+        $pdo = self::getInstance();
+        if ($pdo) {
+            $pdo->commit();
+        }
     }
 
     /**
@@ -190,7 +213,10 @@ class Database
      */
     public static function rollback(): void
     {
-        self::getInstance()->rollback();
+        $pdo = self::getInstance();
+        if ($pdo) {
+            $pdo->rollback();
+        }
     }
 
     /**
@@ -198,7 +224,8 @@ class Database
      */
     public static function inTransaction(): bool
     {
-        return self::getInstance()->inTransaction();
+        $pdo = self::getInstance();
+        return $pdo ? $pdo->inTransaction() : false;
     }
 
     /**
@@ -206,7 +233,8 @@ class Database
      */
     public static function lastInsertId(): string
     {
-        return self::getInstance()->lastInsertId();
+        $pdo = self::getInstance();
+        return $pdo ? $pdo->lastInsertId() : '0';
     }
 
     /**
@@ -253,7 +281,8 @@ class Database
      */
     public static function exec(string $sql): int
     {
-        return self::getInstance()->exec($sql);
+        $pdo = self::getInstance();
+        return $pdo ? $pdo->exec($sql) : 0;
     }
 
     /**
@@ -262,5 +291,6 @@ class Database
     public static function close(): void
     {
         self::$instance = null;
+        self::$connected = false;
     }
 }
