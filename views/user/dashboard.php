@@ -13,98 +13,112 @@ if (!$userId) {
     exit;
 }
 
-// Get user verification status
-$isVerified = false;
-$verifiedAt = null;
-if (\Core\Database::columnExists('users', 'is_verified')) {
-    if (\Core\Database::columnExists('users', 'verified_at')) {
-        $userData = \Core\Database::fetch("SELECT is_verified, verified_at FROM users WHERE user_id = ?", [$userId]);
-        $isVerified = (bool) ($userData['is_verified'] ?? false);
-        $verifiedAt = $userData['verified_at'] ?? null;
-    } else {
-        $userData = \Core\Database::fetch("SELECT is_verified FROM users WHERE user_id = ?", [$userId]);
-        $isVerified = (bool) ($userData['is_verified'] ?? false);
-    }
-}
-
-// Get blueprint status
-$userStatus = \Core\Database::fetchColumn("SELECT status FROM users WHERE user_id = ?", [$userId]);
-$blueprintApproved = (($userStatus ?? '') === 'active');
-
 // Include verified badge component
 include_once ROOT_PATH . '/views/partials/verified_badge.php';
 
 // Include blueprint tick component
 include_once ROOT_PATH . '/views/partials/blueprint_badge.php';
 
-// Dashboard statistics
-$stats = \Core\Database::fetch("
-    SELECT 
-        u.balance,
-        u.total_earned,
-        u.total_withdrawn,
-        (SELECT COUNT(*) FROM ads WHERE user_id = ? AND status = 'active') as active_ads,
-        (SELECT COUNT(*) FROM ad_views WHERE viewer_user_id = ? AND DATE(created_at) = CURDATE() AND is_valid = TRUE) as today_views,
-        (SELECT COALESCE(SUM(earned_amount), 0) FROM ad_views WHERE viewer_user_id = ? AND DATE(created_at) = CURDATE() AND is_valid = TRUE) as today_earnings
-    FROM users u WHERE u.user_id = ?
-", [$userId, $userId, $userId, $userId]);
+// Dashboard statistics with error handling
+$stats = [
+    'balance' => 0,
+    'total_earned' => 0,
+    'total_withdrawn' => 0,
+    'active_ads' => 0,
+    'today_views' => 0,
+    'today_earnings' => 0,
+    'total_referrals' => 0,
+    'today_referrals' => 0,
+    'today_referral_earnings' => 0,
+];
+$recentActivities = [];
+$availableAds = 0;
+$availableTasks = 0;
+$isVerified = false;
+$blueprintApproved = false;
 
-if (!$stats) {
-    (new \Core\Response())->redirect('/login');
-    exit;
+try {
+    $userStatus = \Core\Database::fetchColumn("SELECT status FROM users WHERE user_id = ?", [$userId]);
+    $blueprintApproved = (($userStatus ?? '') === 'active');
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load user status - ' . $e->getMessage());
 }
 
-$stats['total_referrals'] = 0;
-$stats['today_referrals'] = 0;
-$stats['today_referral_earnings'] = 0;
-
-if (\Core\Database::tableExists('referrals')) {
-    $stats['total_referrals'] = (int) \Core\Database::fetchColumn(
-        "SELECT COUNT(*) FROM referrals WHERE referrer_id = ?",
-        [$userId]
-    );
-    $stats['today_referrals'] = (int) \Core\Database::fetchColumn(
-        "SELECT COUNT(*) FROM referrals WHERE referrer_id = ? AND DATE(created_at) = CURDATE()",
-        [$userId]
-    );
+try {
+    $isVerified = (bool) \Core\Database::fetchColumn("SELECT COALESCE(is_verified, 0) FROM users WHERE user_id = ?", [$userId]);
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load verification status - ' . $e->getMessage());
 }
 
-if (\Core\Database::tableExists('referral_earnings')) {
-    $stats['today_referral_earnings'] = (float) \Core\Database::fetchColumn(
-        "SELECT COALESCE(SUM(amount), 0) FROM referral_earnings WHERE referrer_id = ? AND DATE(created_at) = CURDATE()",
-        [$userId]
-    );
+try {
+    $result = \Core\Database::fetch("
+        SELECT 
+            u.balance,
+            u.total_earned,
+            u.total_withdrawn,
+            (SELECT COUNT(*) FROM ads WHERE user_id = ? AND status = 'active') as active_ads,
+            (SELECT COUNT(*) FROM ad_views WHERE viewer_user_id = ? AND DATE(created_at) = CURDATE() AND is_valid = TRUE) as today_views,
+            (SELECT COALESCE(SUM(earned_amount), 0) FROM ad_views WHERE viewer_user_id = ? AND DATE(created_at) = CURDATE() AND is_valid = TRUE) as today_earnings
+        FROM users u WHERE u.user_id = ?
+    ", [$userId, $userId, $userId, $userId]);
+    if ($result) {
+        $stats = array_merge($stats, $result);
+    }
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load stats - ' . $e->getMessage());
 }
 
-// Recent activities
-$recentActivities = \Core\Database::fetchAll("
-    SELECT 
-        type,
-        amount,
-        description,
-        created_at
-    FROM wallet_transactions 
-    WHERE user_id = ? 
-    ORDER BY created_at DESC 
-    LIMIT 10
-", [$userId]);
+try {
+    if (\Core\Database::tableExists('referrals')) {
+        $stats['total_referrals'] = (int) \Core\Database::fetchColumn(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id = ?", [$userId]
+        );
+        $stats['today_referrals'] = (int) \Core\Database::fetchColumn(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id = ? AND DATE(created_at) = CURDATE()", [$userId]
+        );
+    }
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load referral stats - ' . $e->getMessage());
+}
 
-// Available ads count
-$availableAds = \Core\Database::fetchColumn("
-    SELECT COUNT(*) 
-    FROM ads 
-    WHERE status = 'active' 
-    AND remaining_views > 0
-    AND user_id != ?
-", [$userId]);
+try {
+    if (\Core\Database::tableExists('referral_earnings')) {
+        $stats['today_referral_earnings'] = (float) \Core\Database::fetchColumn(
+            "SELECT COALESCE(SUM(amount), 0) FROM referral_earnings WHERE referrer_id = ? AND DATE(created_at) = CURDATE()", [$userId]
+        );
+    }
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load referral earnings - ' . $e->getMessage());
+}
 
-// Available tasks count
-$availableTasks = \Core\Database::fetchColumn("
-    SELECT COUNT(*) 
-    FROM tasks 
-    WHERE status = 'active'
-    AND (expires_at IS NULL OR expires_at > NOW())
-", []);
+try {
+    $recentActivities = \Core\Database::fetchAll("
+        SELECT type, amount, description, created_at
+        FROM wallet_transactions 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC LIMIT 10
+    ", [$userId]);
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load activities - ' . $e->getMessage());
+}
+
+try {
+    $availableAds = (int) \Core\Database::fetchColumn("
+        SELECT COUNT(*) FROM ads 
+        WHERE status = 'active' AND remaining_views > 0 AND user_id != ?
+    ", [$userId]);
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load ads count - ' . $e->getMessage());
+}
+
+try {
+    $availableTasks = (int) \Core\Database::fetchColumn("
+        SELECT COUNT(*) FROM tasks 
+        WHERE status = 'active' AND (expires_at IS NULL OR expires_at > NOW())
+    ", []);
+} catch (\Throwable $e) {
+    \Core\Logger::warning('Dashboard: failed to load tasks count - ' . $e->getMessage());
+}
 
 ob_start();
 ?>

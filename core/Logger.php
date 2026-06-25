@@ -86,9 +86,22 @@ class Logger
         }
 
         $timestamp = date('Y-m-d H:i:s');
-        $request = new Request();
-        $userId = Auth::check() ? Auth::id() : null;
-        $adminId = Auth::adminCheck() ? Auth::adminId() : null;
+        $userId = null;
+        $adminId = null;
+        $ip = '-';
+        $userAgent = '-';
+        $url = '-';
+        $method = '-';
+        try {
+            $request = new Request();
+            $userId = Auth::check() ? Auth::id() : null;
+            $adminId = Auth::adminCheck() ? Auth::adminId() : null;
+            $ip = $request->ip();
+            $userAgent = $request->userAgent();
+            $url = $request->fullUrl();
+            $method = $request->getMethod();
+        } catch (\Throwable $e) {
+        }
 
         $logEntry = [
             'timestamp' => $timestamp,
@@ -97,11 +110,11 @@ class Logger
             'context' => $context,
             'user_id' => $userId,
             'admin_id' => $adminId,
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'url' => $request->fullUrl(),
-            'method' => $request->getMethod()
-        ];
+            'ip' => $ip,
+            'user_agent' => $userAgent,
+            'url' => $url,
+            'method' => $method
+            ];
 
         $formattedEntry = self::formatLogEntry($logEntry);
 

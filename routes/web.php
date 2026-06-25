@@ -39,8 +39,24 @@ $router->get('/admin/logout', ['App\Controllers\AuthController', 'adminLogout'])
 
 // Protected User Routes (require authentication)
 $router->get('/dashboard', function($request, $response) {
-    \Core\Auth::requireAuth();
-    include ROOT_PATH . '/views/user/dashboard.php';
+    try {
+        \Core\Auth::requireAuth();
+    } catch (\Throwable $e) {
+        $response->redirect('/login');
+    }
+
+    if (!\Core\Auth::check()) {
+        $response->redirect('/login');
+    }
+
+    try {
+        include ROOT_PATH . '/views/user/dashboard.php';
+    } catch (\Throwable $e) {
+        if (class_exists(\Core\Logger::class)) {
+            \Core\Logger::error('Dashboard render failed: ' . $e->getMessage());
+        }
+        $response->redirect('/login');
+    }
 });
 
 $router->get('/earn', ['App\Controllers\AdController', 'showEarnPage']);

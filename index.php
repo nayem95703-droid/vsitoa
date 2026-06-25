@@ -1,7 +1,14 @@
 <?php
 declare(strict_types=1);
 
-session_start();
+try {
+    session_start();
+} catch (\Throwable $e) {
+    $_SESSION = [];
+}
+if (!isset($_SESSION) || !is_array($_SESSION)) {
+    $_SESSION = [];
+}
 
 // Debug endpoint — identify exact runtime files
 if (($_SERVER['REQUEST_URI'] ?? '') === '/debug-runtime') {
