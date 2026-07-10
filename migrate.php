@@ -26,6 +26,10 @@ try {
         'referred_by' => "ALTER TABLE users ADD COLUMN referred_by INT DEFAULT NULL",
         'status' => "ALTER TABLE users ADD COLUMN status ENUM('active', 'unverified', 'suspended') DEFAULT 'active'",
         'email_verified' => "ALTER TABLE users ADD COLUMN email_verified TINYINT(1) DEFAULT 0",
+        'earning_balance' => "ALTER TABLE users ADD COLUMN earning_balance DECIMAL(18,8) DEFAULT 0",
+        'advisor_balance' => "ALTER TABLE users ADD COLUMN advisor_balance DECIMAL(18,8) DEFAULT 0",
+        'total_withdrawn' => "ALTER TABLE users ADD COLUMN total_withdrawn DECIMAL(18,8) DEFAULT 0",
+        'total_earned' => "ALTER TABLE users ADD COLUMN total_earned DECIMAL(18,8) DEFAULT 0",
     ];
     foreach ($userColumnsToAdd as $col => $sql) {
         $exists = \Core\Database::fetch("SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?", [$col]);
