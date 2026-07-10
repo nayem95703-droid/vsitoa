@@ -102,17 +102,22 @@ table {
 .container-fluid {
     padding-left: 15px;
     padding-right: 15px;
+    overflow-x: hidden;
 }
 
-.row.no-gutters {
+main {
+    overflow-x: hidden;
+}
+
+.row {
     margin-left: 0;
     margin-right: 0;
 }
 
-.row.no-gutters > .col,
-.row.no-gutters > [class*="col-"] {
-    padding-right: 0;
-    padding-left: 0;
+.row > .col,
+.row > [class*="col-"] {
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
 /* ========== Buttons ========== */
