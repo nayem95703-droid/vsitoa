@@ -18,6 +18,26 @@ $migrations = [];
 try {
     echo "🔄 Starting database migrations...\n\n";
 
+    // 0. Add missing columns to users table
+    echo "0️⃣  Ensuring users table has all required columns...\n";
+    $userColumnsToAdd = [
+        'wallet_address' => "ALTER TABLE users ADD COLUMN wallet_address VARCHAR(255) DEFAULT NULL",
+        'referral_code' => "ALTER TABLE users ADD COLUMN referral_code VARCHAR(20) DEFAULT NULL",
+        'referred_by' => "ALTER TABLE users ADD COLUMN referred_by INT DEFAULT NULL",
+        'status' => "ALTER TABLE users ADD COLUMN status ENUM('active', 'unverified', 'suspended') DEFAULT 'active'",
+        'email_verified' => "ALTER TABLE users ADD COLUMN email_verified TINYINT(1) DEFAULT 0",
+    ];
+    foreach ($userColumnsToAdd as $col => $sql) {
+        $exists = \Core\Database::fetch("SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?", [$col]);
+        if (!$exists || $exists['cnt'] == 0) {
+            \Core\Database::query($sql);
+            echo "   ✅ Added column: $col\n";
+        } else {
+            echo "   ⏭️  Column $col already exists\n";
+        }
+    }
+    echo "\n";
+
     // 1. Create admins table
     echo "1️⃣  Creating admins table...\n";
     $adminTableSQL = "CREATE TABLE IF NOT EXISTS admins (

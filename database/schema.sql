@@ -20,13 +20,19 @@ CREATE TABLE IF NOT EXISTS users (
     total_earnings DECIMAL(10,2) DEFAULT 0,
     total_tasks_completed INT DEFAULT 0,
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    wallet_address VARCHAR(255) DEFAULT NULL,
+    referral_code VARCHAR(20) DEFAULT NULL,
+    referred_by INT DEFAULT NULL,
+    status ENUM('active', 'unverified', 'suspended') DEFAULT 'active',
+    email_verified TINYINT(1) DEFAULT 0,
     is_verified BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_user_type (user_type),
-    INDEX idx_email (email)
+    INDEX idx_email (email),
+    INDEX idx_referral_code (referral_code)
 );
 
 -- Measurement Ads / Tasks Table

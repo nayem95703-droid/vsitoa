@@ -28,9 +28,6 @@ class Database
      */
     public static function getInstance(): ?PDO
     {
-        if (!self::$connected) {
-            return null;
-        }
         if (self::$instance === null) {
             self::connect();
         }
@@ -84,6 +81,7 @@ class Database
     {
         $pdo = self::getInstance();
         if (!$pdo) {
+            Logger::error('Database query failed: no connection');
             return null;
         }
         $stmt = $pdo->prepare($sql);
