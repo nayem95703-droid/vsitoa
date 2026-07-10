@@ -140,3 +140,241 @@ VALUES ('advertiser1', 'advertiser@vsitoa.com', '$2y$10$YIjlrBBdsd9HA7xQG8nwWOTG
 -- Create Sample Worker
 INSERT INTO users (username, email, password, first_name, user_type, rating, is_verified, is_active)
 VALUES ('worker1', 'worker@vsitoa.com', '$2y$10$YIjlrBBdsd9HA7xQG8nwWOTGfPmjd1GsOUjGH9ZNqPtQ5VhVIg5l2', 'Alice', 'worker', 4.5, TRUE, TRUE);
+
+-- Ads Table
+CREATE TABLE IF NOT EXISTS ads (
+    ad_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    ad_title VARCHAR(255) NOT NULL,
+    ad_category VARCHAR(50) DEFAULT 'website',
+    ad_type VARCHAR(20) NOT NULL,
+    target_url VARCHAR(500) NOT NULL,
+    description TEXT,
+    preview_image VARCHAR(255),
+    view_time INT DEFAULT 30,
+    auto_redirect TINYINT(1) DEFAULT 0,
+    timer_type VARCHAR(20) DEFAULT 'countdown',
+    cost_per_view DECIMAL(18,8) NOT NULL,
+    total_views INT NOT NULL,
+    remaining_views INT NOT NULL,
+    spent_amount DECIMAL(18,8) DEFAULT 0,
+    total_budget DECIMAL(18,8) NOT NULL,
+    platform_fee_percent DECIMAL(5,2) DEFAULT 20,
+    target_countries TEXT,
+    device_type VARCHAR(20) DEFAULT 'all',
+    browser VARCHAR(20) DEFAULT 'all',
+    user_level VARCHAR(20) DEFAULT 'all',
+    status ENUM('pending','active','paused','completed','archived') DEFAULT 'pending',
+    started_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_ad_type (ad_type)
+);
+
+-- Ad Views Table
+CREATE TABLE IF NOT EXISTS ad_views (
+    view_id INT PRIMARY KEY AUTO_INCREMENT,
+    ad_id INT NOT NULL,
+    viewer_user_id INT NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255),
+    view_time INT NOT NULL,
+    actual_view_time INT DEFAULT 0,
+    is_valid TINYINT(1) DEFAULT 0,
+    earned_amount DECIMAL(18,8) DEFAULT 0,
+    fraud_score INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ad_id) REFERENCES ads(ad_id),
+    FOREIGN KEY (viewer_user_id) REFERENCES users(id),
+    INDEX idx_ad_id (ad_id),
+    INDEX idx_viewer (viewer_user_id),
+    INDEX idx_valid (is_valid)
+);
+
+-- Deposits Table
+CREATE TABLE IF NOT EXISTS deposits (
+    deposit_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    amount DECIMAL(18,8) NOT NULL,
+    wallet_address VARCHAR(255),
+    txid VARCHAR(255),
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- Withdrawals Table
+CREATE TABLE IF NOT EXISTS withdrawals (
+    withdrawal_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    amount DECIMAL(18,8) NOT NULL,
+    wallet_address VARCHAR(255) NOT NULL,
+    status ENUM('pending','processing','paid','rejected') DEFAULT 'pending',
+    txid VARCHAR(255),
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- Wallet Transactions Table
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+    transaction_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    amount DECIMAL(18,8) NOT NULL,
+    balance_before DECIMAL(18,8),
+    balance_after DECIMAL(18,8),
+    description TEXT,
+    reference_id INT,
+    reference_type VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_type (type)
+);
+
+-- Earnings Table
+CREATE TABLE IF NOT EXISTS earnings (
+    earning_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    source VARCHAR(50),
+    source_id INT,
+    amount DECIMAL(18,8) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id)
+);
+
+-- Referrals Table
+CREATE TABLE IF NOT EXISTS referrals (
+    referral_id INT PRIMARY KEY AUTO_INCREMENT,
+    referrer_id INT NOT NULL,
+    referred_user_id INT NOT NULL,
+    commission_rate DECIMAL(5,2) DEFAULT 10,
+    level INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referrer_id) REFERENCES users(id),
+    FOREIGN KEY (referred_user_id) REFERENCES users(id),
+    INDEX idx_referrer (referrer_id)
+);
+
+-- Referral Earnings Table
+CREATE TABLE IF NOT EXISTS referral_earnings (
+    earning_id INT PRIMARY KEY AUTO_INCREMENT,
+    referrer_id INT NOT NULL,
+    source_user_id INT NOT NULL,
+    amount DECIMAL(18,8) NOT NULL,
+    commission_rate DECIMAL(5,2),
+    source_type VARCHAR(50),
+    source_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referrer_id) REFERENCES users(id),
+    FOREIGN KEY (source_user_id) REFERENCES users(id),
+    INDEX idx_referrer (referrer_id)
+);
+
+-- Referral Clicks Table
+CREATE TABLE IF NOT EXISTS referral_clicks (
+    click_id INT PRIMARY KEY AUTO_INCREMENT,
+    referrer_id INT NOT NULL,
+    referral_code VARCHAR(20),
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255),
+    landing_page VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (referrer_id) REFERENCES users(id),
+    INDEX idx_referrer (referrer_id),
+    INDEX idx_code (referral_code)
+);
+
+-- User Login Log
+CREATE TABLE IF NOT EXISTS user_login_log (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    ip_address VARCHAR(45),
+    user_agent VARCHAR(255),
+    success TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id)
+);
+
+-- Support Tickets
+CREATE TABLE IF NOT EXISTS support_tickets (
+    ticket_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    status ENUM('open','in_progress','resolved','closed') DEFAULT 'open',
+    priority ENUM('low','medium','high') DEFAULT 'medium',
+    category VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- Support Responses
+CREATE TABLE IF NOT EXISTS support_responses (
+    response_id INT PRIMARY KEY AUTO_INCREMENT,
+    ticket_id INT NOT NULL,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    is_admin TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES support_tickets(ticket_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_ticket (ticket_id)
+);
+
+-- User Stickers
+CREATE TABLE IF NOT EXISTS user_stickers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    sticker_type VARCHAR(100) NOT NULL,
+    granted_by INT,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id)
+);
+
+-- User Features
+CREATE TABLE IF NOT EXISTS user_features (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    feature_name VARCHAR(100) NOT NULL,
+    enabled TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id)
+);
+
+-- Verification Requests
+CREATE TABLE IF NOT EXISTS verification_requests (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    document_type VARCHAR(50),
+    document_path VARCHAR(255),
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
