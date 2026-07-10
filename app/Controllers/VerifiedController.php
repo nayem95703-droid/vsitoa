@@ -62,7 +62,7 @@ class VerifiedController
         Auth::requireAuth();
         
         $user = Auth::user();
-        if ($user['is_verified']) {
+        if (!empty($user['is_verified'])) {
             $_SESSION['flash_info'] = 'Your account is already verified.';
             $response->redirect('/dashboard');
             return;
@@ -79,7 +79,7 @@ class VerifiedController
         Auth::requireAuth();
         
         $user = Auth::user();
-        if ($user['is_verified']) {
+        if (!empty($user['is_verified'])) {
             $_SESSION['flash_error'] = 'Your account is already verified.';
             $response->redirect('/dashboard');
             return;

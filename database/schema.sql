@@ -368,6 +368,22 @@ CREATE TABLE IF NOT EXISTS user_features (
     INDEX idx_user_id (user_id)
 );
 
+-- Admins Table
+CREATE TABLE IF NOT EXISTS admins (
+    admin_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'superadmin',
+    permissions JSON DEFAULT NULL,
+    status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+    last_login TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_status (status)
+);
+
 -- Verification Requests
 CREATE TABLE IF NOT EXISTS verification_requests (
     id INT PRIMARY KEY AUTO_INCREMENT,

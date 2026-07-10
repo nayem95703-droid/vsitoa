@@ -1,8 +1,16 @@
-<?php include_once ROOT_PATH . '/views/layouts/header.php'; ?>
+<?php
+$basePath = Config::get('app.base_path') ?: '';
+$page_title = 'Account Verification - ' . Config::get('app.name');
+$show_navbar = true;
+$show_sidebar = true;
+$show_footer = true;
 
-<div class="container mt-4">
+ob_start();
+?>
+
+<div class="container-fluid py-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
@@ -58,7 +66,14 @@
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="/verify/submit" enctype="multipart/form-data">
+                    <?php if (isset($_SESSION['flash_info'])): ?>
+                        <div class="alert alert-info">
+                            <?php echo $_SESSION['flash_info']; unset($_SESSION['flash_info']); ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" action="<?= $basePath ?>/verify/submit" enctype="multipart/form-data">
+                        <input type="hidden" name="_token" value="<?= $_SESSION['_token'] ?? '' ?>">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -128,7 +143,7 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="/dashboard" class="btn btn-secondary me-md-2">Cancel</a>
+                            <a href="<?= $basePath ?>/dashboard" class="btn btn-secondary me-md-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-paper-plane me-2"></i>Submit Verification Request
                             </button>
@@ -174,7 +189,8 @@
     </div>
 </div>
 
-<?php 
+<?php
 unset($_SESSION['old_input']);
-include_once ROOT_PATH . '/views/layouts/footer.php'; 
+$content = ob_get_clean();
+include ROOT_PATH . '/views/layouts/main.php';
 ?>

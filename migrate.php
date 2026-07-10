@@ -30,6 +30,9 @@ try {
         'advisor_balance' => "ALTER TABLE users ADD COLUMN advisor_balance DECIMAL(18,8) DEFAULT 0",
         'total_withdrawn' => "ALTER TABLE users ADD COLUMN total_withdrawn DECIMAL(18,8) DEFAULT 0",
         'total_earned' => "ALTER TABLE users ADD COLUMN total_earned DECIMAL(18,8) DEFAULT 0",
+        'is_verified' => "ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE",
+        'verified_at' => "ALTER TABLE users ADD COLUMN verified_at TIMESTAMP NULL",
+        'is_active' => "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE",
     ];
     foreach ($userColumnsToAdd as $col => $sql) {
         $exists = \Core\Database::fetch("SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = ?", [$col]);
@@ -372,15 +375,22 @@ try {
     \Core\Database::query("CREATE TABLE IF NOT EXISTS verification_requests (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
-        document_type VARCHAR(50),
-        document_path VARCHAR(255),
+        full_name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        id_document_path VARCHAR(500) NOT NULL,
+        company_name VARCHAR(200) NULL,
+        website_url VARCHAR(255) NULL,
+        description TEXT NOT NULL,
         status ENUM('pending','approved','rejected') DEFAULT 'pending',
-        admin_notes TEXT,
+        processed_by INT NULL,
+        processed_at TIMESTAMP NULL,
+        notes TEXT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        reviewed_at TIMESTAMP NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_status (status),
         INDEX idx_user_id (user_id),
-        INDEX idx_status (status)
+        INDEX idx_created_at (created_at)
     )");
     echo "   ✅ Verification requests table created/verified\n\n";
 
