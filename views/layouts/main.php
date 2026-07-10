@@ -48,16 +48,17 @@
     <!-- Main Content -->
     <main>
         <?php if (isset($show_sidebar) && $show_sidebar): ?>
+            <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
             <div class="container-fluid">
                 <div class="row">
-                    <div class="col-md-3 col-lg-2 sidebar">
+                    <div class="col-lg-2 col-md-3 sidebar" id="sidebarCol">
                         <?php if ($isAdminArea): ?>
                             <?php include ROOT_PATH . '/views/partials/admin_sidebar.php'; ?>
                         <?php else: ?>
                             <?php include ROOT_PATH . '/views/partials/sidebar.php'; ?>
                         <?php endif; ?>
                     </div>
-                    <div class="col-md-9 col-lg-10 main-content">
+                    <div class="col-lg-10 col-md-9 main-content">
                         <?= $content ?? '' ?>
                     </div>
                 </div>
@@ -83,5 +84,17 @@
     
     <!-- Page-specific scripts -->
     <?= $scripts ?? '' ?>
+
+    <!-- Sidebar Toggle Script -->
+    <script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebarCol');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        if (!sidebar) return;
+        sidebar.classList.toggle('show');
+        if (backdrop) backdrop.classList.toggle('show');
+        document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+    }
+    </script>
 </body>
 </html>

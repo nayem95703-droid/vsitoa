@@ -579,6 +579,22 @@ ob_start();
 .cta-section {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
+
+@media (max-width: 575.98px) {
+    .hero-3d-wrap {
+        height: 260px;
+    }
+    .hero-3d-scene {
+        transform: scale(0.7);
+        transform-origin: center center;
+    }
+    .stat-item h2 {
+        font-size: 1.8rem;
+    }
+    .display-5 {
+        font-size: 1.6rem;
+    }
+}
 </style>
 
 <?php

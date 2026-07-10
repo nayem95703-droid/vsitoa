@@ -148,3 +148,20 @@ body.admin-body{
     filter: brightness(1.05);
     animation: adminPulse .35s ease-in-out;
 }
+
+@media (max-width: 991.98px) {
+    .admin-sidebar-shell {
+        position: fixed !important;
+        top: 0 !important;
+        left: -260px;
+        width: 260px;
+        height: 100vh;
+        z-index: 1050;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+
+    .admin-sidebar-shell.show {
+        left: 0;
+    }
+}

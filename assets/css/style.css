@@ -18,11 +18,26 @@
     --transition: all 0.3s ease;
 }
 
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: var(--text-color);
     background-color: #f5f7fa;
     line-height: 1.6;
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+img, video, iframe {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    width: 100%;
 }
 
 .container {
@@ -85,8 +100,8 @@ body {
 
 /* Ensure Bootstrap container-fluid works with sidebar */
 .container-fluid {
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
 .row.no-gutters {
@@ -444,5 +459,144 @@ footer {
 
     .feature-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ========== Mobile Responsive ========== */
+@media (max-width: 991.98px) {
+    /* Sidebar: off-canvas on mobile */
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: -260px;
+        width: 260px;
+        height: 100vh;
+        z-index: 1050;
+        transition: left 0.3s ease;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.15);
+        overflow-y: auto;
+        min-height: 100vh;
+    }
+
+    .sidebar.show {
+        left: 0;
+    }
+
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 1040;
+    }
+
+    .sidebar-backdrop.show {
+        display: block;
+    }
+
+    .main-content {
+        padding: 12px !important;
+    }
+
+    /* Navbar balance overflow fix */
+    .navbar .navbar-text {
+        display: none !important;
+    }
+
+    .navbar .nav-link {
+        font-size: 0.9rem;
+        padding: 0.3rem 0.5rem;
+    }
+
+    /* Tabs scrollable on mobile */
+    .nav-tabs {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-tabs .nav-link {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.7rem;
+        white-space: nowrap;
+    }
+
+    /* Stats cards compact on mobile */
+    .col-xl-3 .card-body,
+    .col-md-3 .card-body {
+        padding: 0.75rem;
+    }
+
+    .h5.mb-0 {
+        font-size: 1rem;
+    }
+
+    .h2 {
+        font-size: 1.5rem;
+    }
+
+    /* Tables scroll */
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+
+    /* Grid columns stack */
+    .col-md-3 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    /* Button groups wrap */
+    .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .d-flex.flex-wrap {
+        gap: 0.25rem;
+    }
+
+    .feature-card {
+        padding: 1.25rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .col-md-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .col-md-6,
+    .col-lg-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .hero h1 {
+        font-size: 1.5rem;
+    }
+
+    .hero p {
+        font-size: 1rem;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .card-header h6 {
+        font-size: 0.85rem;
     }
 }

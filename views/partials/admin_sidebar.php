@@ -9,7 +9,13 @@ if ($currentPath === '') {
 }
 $admin = \Core\Auth::admin() ?? [];
 ?>
-<div class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white admin-sidebar-shell" style="height: 100vh; position: sticky; top: 0;">
+<div class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white admin-sidebar-shell" id="sidebar">
+    <div class="d-flex align-items-center justify-content-between mb-3 d-lg-none">
+        <span class="fs-6 fw-bold">Admin Menu</span>
+        <button class="btn btn-sm btn-outline-light" onclick="toggleSidebar()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
             <a href="<?= $basePath ?>/admin" class="nav-link text-white <?= $currentPath === '/admin' ? 'active' : '' ?>">

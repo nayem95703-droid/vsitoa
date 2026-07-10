@@ -16,11 +16,16 @@ if (!empty($user['user_id'])) {
 $blueprintApproved = $freshStatus === 'active';
 include_once ROOT_PATH . '/views/partials/blueprint_badge.php';
 ?>
-<div class="d-flex flex-column flex-shrink-0 p-3 bg-light" style="height: 100vh; position: sticky; top: 0;">
-    <a href="<?= $basePath ?>/dashboard" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
-        <i class="fas fa-tachometer-alt me-2"></i>
-        <span class="fs-6 fw-bold">Dashboard</span>
-    </a>
+<div class="d-flex flex-column flex-shrink-0 p-3 bg-light" id="sidebar">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <a href="<?= $basePath ?>/dashboard" class="d-flex align-items-center text-dark text-decoration-none">
+            <i class="fas fa-tachometer-alt me-2"></i>
+            <span class="fs-6 fw-bold">Dashboard</span>
+        </a>
+        <button class="btn btn-sm d-lg-none" onclick="toggleSidebar()" id="closeSidebarBtn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     
     <hr>
     
@@ -132,8 +137,16 @@ include_once ROOT_PATH . '/views/partials/blueprint_badge.php';
 
 <style>
 .sidebar {
-    min-width: 250px;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+@media (min-width: 992px) {
+    .sidebar {
+        height: calc(100vh - 56px);
+        position: sticky;
+        top: 56px;
+        overflow-y: auto;
+    }
 }
 
 .sidebar .nav-link {

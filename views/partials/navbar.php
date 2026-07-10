@@ -1,6 +1,11 @@
 <?php $basePath = Config::get('app.base_path'); ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid px-3">
+        <?php if (isset($_SESSION['user_id'])): ?>
+        <button class="btn btn-sm btn-outline-light d-lg-none me-2" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+            <i class="fas fa-bars"></i>
+        </button>
+        <?php endif; ?>
         <a class="navbar-brand" href="<?= $basePath ?>/">
             <i class="fas fa-coins me-2"></i>
             <?= Config::get('app.name') ?>
@@ -47,7 +52,7 @@
             <ul class="navbar-nav">
                 <?php if (\Core\Auth::check()): ?>
                     <!-- User Balances -->
-                    <li class="nav-item">
+                    <li class="nav-item d-none d-lg-block">
                         <span class="navbar-text me-3 d-flex align-items-center gap-2">
                             <span class="badge bg-warning text-dark">USDT</span>
                             <span class="small text-white-50">Advisor:</span>
