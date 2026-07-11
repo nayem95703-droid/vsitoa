@@ -19,6 +19,8 @@ class AdvisorController
         Auth::requireAuth();
         
         $userId = Auth::id();
+
+        $user = Database::fetch("SELECT advisor_balance, earning_balance FROM users WHERE user_id = ?", [$userId]);
         
         // Get user's ads statistics
         $stats = Database::fetch("

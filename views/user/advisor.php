@@ -70,7 +70,7 @@ ob_start();
                 </div>
                 <div class="card-body">
                     <div class="h4 mb-0 text-success">
-                        <?= number_format((\Core\Auth::user()['advisor_balance'] ?? 0), 2) ?> USDT
+                        <?= number_format(($user['advisor_balance'] ?? 0), 2) ?> USDT
                     </div>
                     <small class="text-muted">Use this balance for sponsored ads.</small>
                 </div>
