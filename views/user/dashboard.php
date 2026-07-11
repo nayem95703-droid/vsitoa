@@ -7,6 +7,7 @@ $show_footer = true;
 // Get user statistics
 $user = \Core\Auth::user() ?? [];
 $userId = \Core\Auth::id();
+$basePath = (string) Config::get('app.base_path', '');
 
 if (!$userId) {
     (new \Core\Response())->redirect('/login');
