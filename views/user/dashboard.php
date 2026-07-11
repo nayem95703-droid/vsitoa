@@ -53,7 +53,8 @@ try {
 try {
     $result = \Core\Database::fetch("
         SELECT 
-            u.balance,
+            u.earning_balance,
+            u.advisor_balance,
             u.total_earned,
             u.total_withdrawn,
             (SELECT COUNT(*) FROM ads WHERE user_id = ? AND status = 'active') as active_ads,
@@ -63,6 +64,7 @@ try {
     ", [$userId, $userId, $userId, $userId]);
     if ($result) {
         $stats = array_merge($stats, $result);
+        $stats['balance'] = (float) ($stats['earning_balance'] ?? 0);
     }
 } catch (\Throwable $e) {
     \Core\Logger::warning('Dashboard: failed to load stats - ' . $e->getMessage());

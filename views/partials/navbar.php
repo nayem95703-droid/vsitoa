@@ -52,16 +52,25 @@
             <ul class="navbar-nav">
                 <?php if (\Core\Auth::check()): ?>
                     <!-- User Balances -->
+                    <?php
+                    $navAdvisorBalance = 0;
+                    $navEarningBalance = 0;
+                    try {
+                        $navUser = \Core\Database::fetch("SELECT advisor_balance, earning_balance FROM users WHERE user_id = ?", [\Core\Auth::id()]);
+                        $navAdvisorBalance = (float) ($navUser['advisor_balance'] ?? 0);
+                        $navEarningBalance = (float) ($navUser['earning_balance'] ?? 0);
+                    } catch (\Exception $e) { /* fallback to 0 */ }
+                    ?>
                     <li class="nav-item d-none d-lg-block">
                         <span class="navbar-text me-3 d-flex align-items-center gap-2">
                             <span class="badge bg-warning text-dark">USDT</span>
                             <span class="small text-white-50">Advisor:</span>
                             <span id="advisor-balance" class="fw-semibold">
-                                <?= number_format(\Core\Auth::user()['advisor_balance'] ?? 0, 2) ?>
+                                <?= number_format($navAdvisorBalance, 2) ?>
                             </span>
                             <span class="small text-white-50">Earning:</span>
                             <span id="earning-balance" class="fw-semibold">
-                                <?= number_format(\Core\Auth::user()['earning_balance'] ?? 0, 2) ?>
+                                <?= number_format($navEarningBalance, 2) ?>
                             </span>
                         </span>
                     </li>
