@@ -133,16 +133,17 @@ class AuthController
             ]);
 
         } catch (\Throwable $e) {
-    Logger::error("Registration failed: " . $e->getMessage());
+            Logger::error("Registration failed: " . $e->getMessage());
 
-    $response->json([
-        'success' => false,
-        'message' => $e->getMessage(),
-        'file' => $e->getFile(),
-        'line' => $e->getLine(),
-        'trace' => $e->getTraceAsString()
-    ], 500);
-}
+            $debug = Config::get('app.debug');
+            $response->json([
+                'success' => false,
+                'message' => $debug ? $e->getMessage() : 'Failed to create the new account. Please try again.',
+                'file' => $debug ? $e->getFile() : null,
+                'line' => $debug ? $e->getLine() : null,
+                'trace' => $debug ? $e->getTraceAsString() : null
+            ], 500);
+        }
     }
 
     /**

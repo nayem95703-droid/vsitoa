@@ -71,6 +71,9 @@ class Database
 
         } catch (PDOException $e) {
             self::$connected = false;
+            if (class_exists(\Core\Logger::class)) {
+                \Core\Logger::error('Database connection failed: ' . $e->getMessage());
+            }
         }
     }
 
@@ -82,7 +85,7 @@ class Database
         $pdo = self::getInstance();
         if (!$pdo) {
             Logger::error('Database query failed: no connection');
-            return null;
+            throw new \RuntimeException('Database connection failed. Check database configuration.');
         }
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
@@ -95,9 +98,6 @@ class Database
     public static function fetch(string $sql, array $params = []): ?array
     {
         $stmt = self::query($sql, $params);
-        if (!$stmt) {
-            return null;
-        }
         $result = $stmt->fetch();
         return $result ?: null;
     }
@@ -108,9 +108,6 @@ class Database
     public static function fetchAll(string $sql, array $params = []): array
     {
         $stmt = self::query($sql, $params);
-        if (!$stmt) {
-            return [];
-        }
         return $stmt->fetchAll();
     }
 
@@ -120,9 +117,6 @@ class Database
     public static function fetchColumn(string $sql, array $params = [], int $column = 0): mixed
     {
         $stmt = self::query($sql, $params);
-        if (!$stmt) {
-            return null;
-        }
         return $stmt->fetchColumn($column);
     }
 
@@ -143,7 +137,7 @@ class Database
 
         $stmt = self::query($sql, array_values($data));
         if (!$stmt) {
-            return 0;
+            throw new \RuntimeException("Database insert failed for table '$table'. Check database connection and logs.");
         }
         $pdo = self::getInstance();
         return $pdo ? (int) $pdo->lastInsertId() : 0;
