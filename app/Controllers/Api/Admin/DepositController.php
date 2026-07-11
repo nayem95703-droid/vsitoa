@@ -66,7 +66,7 @@ class DepositController
             }
 
             $user = Database::fetch(
-                "SELECT balance, advisor_balance FROM users WHERE user_id = ? FOR UPDATE",
+                "SELECT earning_balance, advisor_balance FROM users WHERE user_id = ? FOR UPDATE",
                 [(int) $deposit['user_id']]
             );
 
@@ -76,16 +76,16 @@ class DepositController
                 return;
             }
 
-            $balanceBefore = (float) ($user['balance'] ?? 0);
+            $earningBalanceBefore = (float) ($user['earning_balance'] ?? 0);
             $advisorBalanceBefore = (float) ($user['advisor_balance'] ?? 0);
             $amount = (float) ($deposit['amount'] ?? 0);
-            $balanceAfter = $balanceBefore + $amount;
+            $earningBalanceAfter = $earningBalanceBefore + $amount;
             $advisorBalanceAfter = $advisorBalanceBefore + $amount;
 
             Database::update(
                 'users',
                 [
-                    'balance' => $balanceAfter,
+                    'earning_balance' => $earningBalanceAfter,
                     'advisor_balance' => $advisorBalanceAfter,
                 ],
                 'user_id = ?',
@@ -103,8 +103,8 @@ class DepositController
                 'user_id' => (int) $deposit['user_id'],
                 'type' => 'deposit',
                 'amount' => $amount,
-                'balance_before' => $balanceBefore,
-                'balance_after' => $balanceAfter,
+                'balance_before' => $earningBalanceBefore,
+                'balance_after' => $earningBalanceAfter,
                 'description' => 'Deposit approved: ' . $amount . ' ' . (string) ($deposit['currency'] ?? ''),
                 'reference_id' => $depositId,
                 'reference_type' => 'deposit'

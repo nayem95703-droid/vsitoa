@@ -576,7 +576,7 @@ class WalletController
         // Get overall stats
         $stats = Database::fetch("
             SELECT 
-                u.balance,
+                u.earning_balance,
                 u.total_earned,
                 u.total_withdrawn,
                 (SELECT COUNT(*) FROM deposits WHERE user_id = ? AND status = 'approved') as total_deposits,
