@@ -84,9 +84,19 @@ ob_start();
                             </div>
 
                             <div class="mb-3">
-                                <label for="description" class="form-label">Description</label>
-                                <textarea class="form-control" id="description" name="description" rows="3" maxlength="1000"></textarea>
-                                <small class="text-muted">Brief description of your product/service (optional)</small>
+                                <label for="description" class="form-label">Task Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="5" maxlength="4000" placeholder="Please describe the task in the following format:
+
+1. Purpose: (e.g. Register on the website)
+2. Steps:
+   - Go to this link: [Link]
+   - Click the Sign-up button
+   - Verify your email
+3. Proof: (e.g. Your username and verification screenshot)"></textarea>
+                                <small class="text-muted">Brief description of your product/service (optional). Remaining: <span id="descCharCount">4000</span> characters</small>
+                                <div class="mt-2 p-2 bg-light rounded small text-muted">
+                                    <strong>Pro Tip:</strong> The clearer your task description, the faster workers will complete your task. Posting tasks with incorrect information may result in deletion by admin.
+                                </div>
                             </div>
                         </div>
 
@@ -362,6 +372,15 @@ const countries = [
 ];
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Character counter for description
+    const descTextarea = document.getElementById('description');
+    const descCharCount = document.getElementById('descCharCount');
+    if (descTextarea && descCharCount) {
+        descTextarea.addEventListener('input', function() {
+            descCharCount.textContent = 4000 - this.value.length;
+        });
+    }
+
     // Category -> Ad Type mapping
     const categorySelect = document.getElementById('ad_category');
     const adTypeSelect = document.getElementById('ad_type');
