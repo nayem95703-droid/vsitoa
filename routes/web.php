@@ -177,6 +177,63 @@ $router->get('/admin', function($request, $response) {
         }
     }
 
+    $stats = [
+        'users' => ['total' => 0, 'active' => 0, 'new_today' => 0],
+        'ads' => ['total' => 0, 'active' => 0, 'pending' => 0],
+        'financial' => [
+            'total_balance' => 0,
+            'total_earned' => 0,
+            'total_withdrawn' => 0,
+            'pending_deposits' => 0,
+            'pending_withdrawals' => 0
+        ],
+        'tasks' => ['total' => 0, 'completed' => 0, 'active' => 0, 'pending' => 0]
+    ];
+
+    try {
+        $stats['users']['total'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM users");
+        $stats['users']['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM users WHERE status = 'active'");
+        $stats['users']['new_today'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()");
+    } catch (\Throwable $e) {}
+
+    try {
+        $stats['ads']['total'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads");
+        $stats['ads']['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'active'");
+        $stats['ads']['pending'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'pending'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $stats['financial']['total_balance'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(earning_balance + advisor_balance), 0) FROM users");
+        $stats['financial']['total_earned'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(total_earned), 0) FROM users");
+        $stats['financial']['total_withdrawn'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(total_withdrawn), 0) FROM users");
+        $stats['financial']['pending_deposits'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'pending'");
+        $stats['financial']['pending_withdrawals'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $stats['tasks']['total'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks");
+        $stats['tasks']['completed'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'completed'");
+        $stats['tasks']['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'active'");
+        $stats['tasks']['pending'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'pending'");
+    } catch (\Throwable $e) {}
+
+    $alerts = [];
+    if ($stats['financial']['pending_deposits'] > 0) {
+        $alerts[] = ['type' => 'warning', 'icon' => 'fa-exclamation-triangle', 'message' => "{$stats['financial']['pending_deposits']} pending deposit(s) need review."];
+    }
+    if ($stats['financial']['pending_withdrawals'] > 0) {
+        $alerts[] = ['type' => 'info', 'icon' => 'fa-info-circle', 'message' => "{$stats['financial']['pending_withdrawals']} pending withdrawal(s) to process."];
+    }
+
+    $recentActivities = [];
+    try {
+        $recentActivities = \Core\Database::fetchAll(
+            "SELECT 'System' as admin_name, 'Deposit' as action, CONCAT(username, ' deposited ', amount, ' USDT') as details, created_at 
+             FROM deposits d JOIN users u ON d.user_id = u.user_id 
+             ORDER BY created_at DESC LIMIT 10"
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/dashboard.php';
 });
 
