@@ -228,9 +228,9 @@ $router->get('/admin', function($request, $response) {
     $recentActivities = [];
     try {
         $recentActivities = \Core\Database::fetchAll(
-            "SELECT 'System' as admin_name, 'Deposit' as action, CONCAT(username, ' deposited ', amount, ' USDT') as details, created_at 
+            "SELECT 'System' as admin_name, 'Deposit' as action, CONCAT(u.username, ' deposited ', d.amount, ' USDT') as details, d.created_at 
              FROM deposits d JOIN users u ON d.user_id = u.user_id 
-             ORDER BY created_at DESC LIMIT 10"
+             ORDER BY d.created_at DESC LIMIT 10"
         );
     } catch (\Throwable $e) {}
 
