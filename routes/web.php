@@ -295,8 +295,8 @@ $router->post('/admin/deposits/approve', function($request, $response) {
         $userId = (int) $deposit['user_id'];
 
         \Core\Database::query(
-            "UPDATE users SET earning_balance = earning_balance + ?, advisor_balance = advisor_balance + ? WHERE user_id = ?",
-            [$amount, $amount, $userId]
+            "UPDATE users SET advisor_balance = advisor_balance + ? WHERE user_id = ?",
+            [$amount, $userId]
         );
 
         $depositUpdate = ['status' => 'approved'];
