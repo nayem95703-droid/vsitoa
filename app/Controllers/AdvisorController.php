@@ -5,6 +5,7 @@ namespace App\Controllers;
 use Core\Request;
 use Core\Response;
 use Core\Auth;
+use Core\Config;
 use Core\Database;
 use Core\Validator;
 use Core\Logger;
