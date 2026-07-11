@@ -581,6 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    updateAutoTotalViews();
     calculateBudget();
 
     // Image preview
@@ -609,10 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(this);
         const data = Object.fromEntries(formData);
         
-        // Convert checkboxes to boolean
         data.auto_redirect = formData.has('auto_redirect');
-        
-        // Handle multiple select
         data.target_countries = formData.getAll('target_countries[]');
         
         const btn = document.getElementById('createAdBtn');

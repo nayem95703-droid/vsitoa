@@ -105,47 +105,47 @@ class AdvisorController
      */
     public function createAd(Request $request, Response $response): void
     {
-        Auth::requireAuth();
-        
-        $userId = Auth::id();
-        $data = $request->all();
-        
-        // Validate input
-        $validator = Validator::make($data, [
-            'ad_title' => 'required|string|max:255',
-            'ad_category' => 'required|in:website,app,video,article',
-            'ad_type' => 'required|in:surf,window,video,article',
-            'target_url' => 'required|url',
-            'description' => 'nullable|string|max:1000',
-            'view_time' => 'required|integer|min:5|max:300',
-            'auto_redirect' => 'boolean',
-            'timer_type' => 'required|in:countdown,progress',
-            'cost_per_view' => 'required|numeric|min:0.00000001',
-            'total_views' => 'required|integer|min:100|max:1000000',
-            'target_countries' => 'nullable|array',
-            'device_type' => 'required|in:all,mobile,desktop',
-            'browser' => 'required|in:all,chrome,firefox,safari,edge',
-            'user_level' => 'required|in:all,normal,premium'
-        ], [
-            'ad_title.required' => 'Ad title is required',
-            'target_url.url' => 'Please enter a valid URL',
-            'cost_per_view.min' => 'Cost per view must be greater than 0',
-            'total_views.min' => 'Total views must be at least 100'
-        ]);
-        
-        if (!$validator->validate()) {
-            $response->validationError($validator->errors());
-            return;
-        }
-        
         try {
+            Auth::requireAuth();
+            
+            $userId = Auth::id();
+            $data = $request->all();
+            
+            // Validate input
+            $validator = Validator::make($data, [
+                'ad_title' => 'required|string|max:255',
+                'ad_category' => 'required|in:website,app,video,article',
+                'ad_type' => 'required|in:surf,window,video,article',
+                'target_url' => 'required|url',
+                'description' => 'nullable|string|max:1000',
+                'view_time' => 'required|integer|min:5|max:300',
+                'auto_redirect' => 'boolean',
+                'timer_type' => 'required|in:countdown,progress',
+                'cost_per_view' => 'required|numeric|min:0.00000001',
+                'total_views' => 'required|integer|min:100|max:1000000',
+                'target_countries' => 'nullable|array',
+                'device_type' => 'required|in:all,mobile,desktop',
+                'browser' => 'required|in:all,chrome,firefox,safari,edge',
+                'user_level' => 'required|in:all,normal,premium'
+            ], [
+                'ad_title.required' => 'Ad title is required',
+                'target_url.url' => 'Please enter a valid URL',
+                'cost_per_view.min' => 'Cost per view must be greater than 0',
+                'total_views.min' => 'Total views must be at least 100'
+            ]);
+            
+            if (!$validator->validate()) {
+                $response->validationError($validator->errors());
+                return;
+            }
+            
             Database::beginTransaction();
             
             // Get user's current balance
             $user = Database::fetch("SELECT advisor_balance FROM users WHERE user_id = ? FOR UPDATE", [$userId]);
             
             // Calculate total budget
-            $platformFeePercent = Config::get('rates.platform_fee');
+            $platformFeePercent = Config::get('rates.platform_fee') ?? 20;
             $totalBudget = $data['cost_per_view'] * $data['total_views'];
             $platformFee = $totalBudget * ($platformFeePercent / 100);
             $finalPayableAmount = $totalBudget + $platformFee;
@@ -173,7 +173,7 @@ class AdvisorController
                 'description' => $data['description'] ?? null,
                 'preview_image' => $previewImage,
                 'view_time' => $data['view_time'],
-                'auto_redirect' => $data['auto_redirect'] ?? false,
+                'auto_redirect' => !empty($data['auto_redirect']) ? 1 : 0,
                 'timer_type' => $data['timer_type'],
                 'cost_per_view' => $data['cost_per_view'],
                 'total_views' => $data['total_views'],
@@ -206,10 +206,15 @@ class AdvisorController
                 ]
             ]);
             
-        } catch (\Exception $e) {
-            Database::rollback();
-            Logger::error("Create ad error: " . $e->getMessage());
-            $response->error('Failed to create advertisement', 500);
+        } catch (\Throwable $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                Database::rollback();
+            } elseif (function_exists('database_rollback_safe')) {
+                try { Database::rollback(); } catch (\Throwable $e2) {}
+            }
+            $errorMsg = $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
+            Logger::error("Create ad error: " . $errorMsg);
+            $response->error('Failed to create advertisement: ' . $e->getMessage(), 500);
         }
     }
 
