@@ -66,6 +66,20 @@ $router->get('/tasks', ['App\Controllers\TaskController', 'showTasks']);
 $router->get('/wallet', ['App\Controllers\WalletController', 'showWallet']);
 $router->post('/wallet/transfer-advisor', ['App\Controllers\WalletController', 'transferToAdvisor']);
 
+$router->get('/notifications/mark-read', function($request, $response) {
+    \Core\Auth::requireAuth();
+    $id = (int) ($_GET['id'] ?? 0);
+    $userId = \Core\Auth::id();
+    if ($id > 0 && $userId) {
+        \Core\Database::query(
+            "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+            [$id, $userId]
+        );
+    }
+    $referer = $_SERVER['HTTP_REFERER'] ?? '/dashboard';
+    $response->redirect($referer);
+});
+
 $router->get('/deposit', ['App\Controllers\WalletController', 'showDeposit']);
 $router->post('/deposit', ['App\Controllers\WalletController', 'createDeposit']);
 
@@ -610,6 +624,30 @@ $router->post('/admin/notifications/mark-all-read', function($request, $response
     \Core\Auth::requireAdmin();
     \Core\Database::query("UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0");
     $_SESSION['flash_success'] = 'All notifications marked as read.';
+    $response->redirect('/admin/notifications');
+});
+
+$router->post('/admin/broadcast', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $title = trim($data['title'] ?? '');
+    $message = trim($data['message'] ?? '');
+
+    if (empty($message)) {
+        $_SESSION['flash_success'] = 'Message cannot be empty.';
+        $response->redirect('/admin/notifications');
+        return;
+    }
+
+    $insertTitle = $title ?: 'Announcement';
+    \Core\Database::query(
+        "INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+         SELECT user_id, ?, ?, 'broadcast', 0, NOW() FROM users WHERE user_id IS NOT NULL",
+        [$insertTitle, $message]
+    );
+
+    $inserted = \Core\Database::query("SELECT ROW_COUNT()")->fetchColumn();
+    $_SESSION['flash_success'] = "Broadcast sent to all users successfully!";
     $response->redirect('/admin/notifications');
 });
 

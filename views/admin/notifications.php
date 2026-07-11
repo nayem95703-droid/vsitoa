@@ -38,6 +38,29 @@ ob_start();
         <?php unset($_SESSION['flash_success']); ?>
     <?php endif; ?>
 
+    <!-- Broadcast Message Card -->
+    <div class="card admin-card mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-white"><i class="fas fa-bullhorn me-2"></i>Broadcast Message to All Users</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="<?= $basePath ?>/admin/broadcast">
+                <input type="hidden" name="_token" value="<?= $_SESSION['_token'] ?? '' ?>">
+                <div class="mb-3">
+                    <label for="broadcast_title" class="form-label text-white">Title</label>
+                    <input type="text" class="form-control" id="broadcast_title" name="title" placeholder="e.g. Maintenance Notice" required maxlength="255">
+                </div>
+                <div class="mb-3">
+                    <label for="broadcast_message" class="form-label text-white">Message</label>
+                    <textarea class="form-control" id="broadcast_message" name="message" rows="3" placeholder="Type your announcement here..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Send this message to ALL users?')">
+                    <i class="fas fa-paper-plane me-1"></i>Broadcast to All Users
+                </button>
+            </form>
+        </div>
+    </div>
+
     <div class="card admin-card admin-card-hover">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-white">System Notifications</h6>

@@ -122,6 +122,16 @@ try {
     \Core\Logger::warning('Dashboard: failed to load tasks count - ' . $e->getMessage());
 }
 
+$broadcastNotifications = [];
+if ($userId) {
+    try {
+        $broadcastNotifications = \Core\Database::fetchAll(
+            "SELECT id, title, message, created_at FROM notifications WHERE user_id = ? AND type = 'broadcast' AND is_read = 0 ORDER BY created_at DESC LIMIT 5",
+            [$userId]
+        );
+    } catch (\Throwable $e) {}
+}
+
 ob_start();
 ?>
 
@@ -145,6 +155,21 @@ ob_start();
             </div>
         </div>
     </div>
+
+    <?php if (!empty($broadcastNotifications)): ?>
+        <?php foreach ($broadcastNotifications as $bnote): ?>
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-bullhorn me-2 mt-1"></i>
+                    <div class="flex-grow-1">
+                        <strong><?= htmlspecialchars($bnote['title']) ?>:</strong> <?= htmlspecialchars($bnote['message']) ?>
+                        <br><small class="text-muted"><?= date('M j, Y g:i A', strtotime($bnote['created_at'])) ?></small>
+                    </div>
+                    <a href="<?= $basePath ?>/notifications/mark-read?id=<?= (int) $bnote['id'] ?>" class="btn-close ms-2" aria-label="Dismiss"></a>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 
     <?php if ($isVerified): ?>
     <!-- Verification Benefits Alert -->
