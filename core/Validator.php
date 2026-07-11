@@ -175,8 +175,8 @@ class Validator
     {
         $min = $parameters[0] ?? 0;
 
-        if (is_string($value)) {
-            if (strlen($value) < $min) {
+        if (is_array($value)) {
+            if (count($value) < $min) {
                 $this->addError($field, 'min', $parameters);
                 return false;
             }
@@ -185,8 +185,8 @@ class Validator
                 $this->addError($field, 'min', $parameters);
                 return false;
             }
-        } elseif (is_array($value)) {
-            if (count($value) < $min) {
+        } elseif (is_string($value)) {
+            if (strlen($value) < $min) {
                 $this->addError($field, 'min', $parameters);
                 return false;
             }
@@ -199,8 +199,8 @@ class Validator
     {
         $max = $parameters[0] ?? 0;
 
-        if (is_string($value)) {
-            if (strlen($value) > $max) {
+        if (is_array($value)) {
+            if (count($value) > $max) {
                 $this->addError($field, 'max', $parameters);
                 return false;
             }
@@ -209,8 +209,8 @@ class Validator
                 $this->addError($field, 'max', $parameters);
                 return false;
             }
-        } elseif (is_array($value)) {
-            if (count($value) > $max) {
+        } elseif (is_string($value)) {
+            if (strlen($value) > $max) {
                 $this->addError($field, 'max', $parameters);
                 return false;
             }
@@ -231,7 +231,7 @@ class Validator
 
     private function validateInteger(string $field, mixed $value): bool
     {
-        if (!filter_var($value, FILTER_VALIDATE_INT)) {
+        if (filter_var($value, FILTER_VALIDATE_INT) === false) {
             $this->addError($field, 'integer');
             return false;
         }

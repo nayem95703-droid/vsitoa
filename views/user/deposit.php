@@ -258,7 +258,7 @@ ob_start();
                                     </td>
                                     <td><?= number_format($deposit['amount'], 8) ?></td>
                                     <td>
-                                        <code class="small"><?= substr($deposit['wallet_address'], 0, 10) ?>...</code>
+                                        <code class="small"><?= ($deposit['wallet_address'] ?? null) ? htmlspecialchars(substr($deposit['wallet_address'], 0, 10)) . '...' : 'N/A' ?></code>
                                     </td>
                                     <td>
                                         <?php if ($deposit['txid']): ?>

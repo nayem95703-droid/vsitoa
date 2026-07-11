@@ -398,3 +398,19 @@ CREATE TABLE IF NOT EXISTS verification_requests (
     INDEX idx_user_id (user_id),
     INDEX idx_status (status)
 );
+
+-- Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'info',
+    is_read TINYINT(1) DEFAULT 0,
+    reference_type VARCHAR(50),
+    reference_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read)
+);

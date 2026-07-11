@@ -146,14 +146,32 @@ class UserController
     public function getNotifications(Request $request, Response $response): void
     {
         Auth::requireAuth();
+        $userId = Auth::id();
 
-        // No notifications table in current schema; return empty array.
-        $response->json(['success' => true, 'data' => []]);
+        try {
+            $notifications = Database::fetchAll(
+                "SELECT id, title, message, type, is_read, reference_type, reference_id, created_at 
+                 FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
+                [$userId]
+            );
+            $response->json(['success' => true, 'data' => $notifications]);
+        } catch (\Exception $e) {
+            Logger::error('getNotifications error: ' . $e->getMessage());
+            $response->json(['success' => true, 'data' => []]);
+        }
     }
 
     public function markNotificationRead(Request $request, Response $response, string $id): void
     {
         Auth::requireAuth();
-        $response->json(['success' => true, 'message' => 'Notification marked as read']);
+        $userId = Auth::id();
+
+        try {
+            Database::update('notifications', ['is_read' => 1], 'id = ? AND user_id = ?', [(int) $id, $userId]);
+            $response->json(['success' => true, 'message' => 'Notification marked as read']);
+        } catch (\Exception $e) {
+            Logger::error('markNotificationRead error: ' . $e->getMessage());
+            $response->json(['success' => false, 'message' => 'Failed to mark notification'], 500);
+        }
     }
 }

@@ -290,6 +290,21 @@ $router->post('/admin/deposits/approve', function($request, $response) {
 
         \Core\Database::commit();
 
+        try {
+            \Core\Database::insert('notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'title' => 'Deposit Approved',
+                'message' => 'Your deposit of ' . number_format($amount, 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' has been approved and added to your balance.',
+                'type' => 'success',
+                'reference_type' => 'deposit',
+                'reference_id' => $depositId
+            ]);
+        } catch (\Exception $e) {
+            if (class_exists(\Core\Logger::class)) {
+                \Core\Logger::error('Approve deposit notification error: ' . $e->getMessage());
+            }
+        }
+
         $_SESSION['flash_success'] = 'Deposit approved successfully.';
         $response->redirect('/admin/deposits');
     } catch (\Exception $e) {
@@ -321,7 +336,7 @@ $router->post('/admin/deposits/reject', function($request, $response) {
         \Core\Database::beginTransaction();
 
         $deposit = \Core\Database::fetch(
-            "SELECT deposit_id, status FROM deposits WHERE deposit_id = ? FOR UPDATE",
+            "SELECT deposit_id, user_id, currency, amount, status FROM deposits WHERE deposit_id = ? FOR UPDATE",
             [$depositId]
         );
 
@@ -352,6 +367,21 @@ $router->post('/admin/deposits/reject', function($request, $response) {
         );
 
         \Core\Database::commit();
+
+        try {
+            \Core\Database::insert('notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'title' => 'Deposit Rejected',
+                'message' => 'Your deposit of ' . number_format((float) ($deposit['amount'] ?? 0), 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' has been rejected.' . ($adminNotes ? ' Reason: ' . $adminNotes : ''),
+                'type' => 'danger',
+                'reference_type' => 'deposit',
+                'reference_id' => $depositId
+            ]);
+        } catch (\Exception $e) {
+            if (class_exists(\Core\Logger::class)) {
+                \Core\Logger::error('Reject deposit notification error: ' . $e->getMessage());
+            }
+        }
 
         $_SESSION['flash_success'] = 'Deposit rejected successfully.';
         $response->redirect('/admin/deposits');

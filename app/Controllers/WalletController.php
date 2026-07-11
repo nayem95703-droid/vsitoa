@@ -244,6 +244,19 @@ class WalletController
                 'currency' => $data['currency'],
                 'amount' => $data['amount']
             ]);
+
+            try {
+                Database::insert('notifications', [
+                    'user_id' => $userId,
+                    'title' => 'Deposit Request Submitted',
+                    'message' => 'Your deposit request for ' . number_format((float) $data['amount'], 8) . ' ' . $data['currency'] . ' has been submitted and is pending review.',
+                    'type' => 'info',
+                    'reference_type' => 'deposit',
+                    'reference_id' => $depositId
+                ]);
+            } catch (\Exception $e) {
+                Logger::error("Notification insert error: " . $e->getMessage());
+            }
             
             $_SESSION['flash_success'] = 'Deposit request created successfully.';
             $response->redirect('/deposit');

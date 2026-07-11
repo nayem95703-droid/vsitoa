@@ -394,8 +394,25 @@ try {
     )");
     echo "   ✅ Verification requests table created/verified\n\n";
 
-    // 20. Check if admin exists
-    echo "2️⃣0️⃣  Checking admin account...\n";
+    // 20. Create notifications table
+    echo "2️⃣0️⃣  Creating notifications table...\n";
+    \Core\Database::query("CREATE TABLE IF NOT EXISTS notifications (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read TINYINT(1) DEFAULT 0,
+        reference_type VARCHAR(50),
+        reference_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_is_read (is_read)
+    )");
+    echo "   ✅ Notifications table created/verified\n\n";
+
+    // 21. Check if admin exists
+    echo "2️⃣1️⃣  Checking admin account...\n";
     $adminExists = \Core\Database::fetch(
         "SELECT id FROM admins WHERE username = ?",
         ['admin']
