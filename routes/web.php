@@ -291,87 +291,48 @@ $router->post('/admin/deposits/approve', function($request, $response) {
             return;
         }
 
-        $user = \Core\Database::fetch(
-            "SELECT earning_balance, advisor_balance FROM users WHERE user_id = ? FOR UPDATE",
-            [(int) $deposit['user_id']]
-        );
-
-        if (!$user) {
-            \Core\Database::rollback();
-            $_SESSION['flash_error'] = 'User not found.';
-            $response->redirect('/admin/deposits');
-            return;
-        }
-
-        $earningBalanceBefore = (float) ($user['earning_balance'] ?? 0);
-        $advisorBalanceBefore = (float) ($user['advisor_balance'] ?? 0);
         $amount = (float) ($deposit['amount'] ?? 0);
-        $earningBalanceAfter = $earningBalanceBefore + $amount;
-        $advisorBalanceAfter = $advisorBalanceBefore + $amount;
+        $userId = (int) $deposit['user_id'];
 
-        \Core\Database::update(
-            'users',
-            [
-                'earning_balance' => $earningBalanceAfter,
-                'advisor_balance' => $advisorBalanceAfter,
-            ],
-            'user_id = ?',
-            [(int) $deposit['user_id']]
+        \Core\Database::query(
+            "UPDATE users SET earning_balance = earning_balance + ?, advisor_balance = advisor_balance + ? WHERE user_id = ?",
+            [$amount, $amount, $userId]
         );
 
         $depositUpdate = ['status' => 'approved'];
         if ($adminNotes !== null && $adminNotes !== '') {
             $depositUpdate['admin_notes'] = $adminNotes;
         }
+        \Core\Database::update('deposits', $depositUpdate, 'deposit_id = ?', [$depositId]);
 
-        \Core\Database::update(
-            'deposits',
-            $depositUpdate,
-            'deposit_id = ?',
-            [$depositId]
+        \Core\Database::query(
+            "INSERT INTO wallet_transactions (user_id, type, amount, description, reference_id, reference_type) VALUES (?, 'deposit', ?, ?, ?, 'deposit')",
+            [$userId, $amount, 'Deposit approved: ' . $amount . ' ' . (string) ($deposit['currency'] ?? ''), $depositId]
         );
-
-        \Core\Database::insert('wallet_transactions', [
-            'user_id' => (int) $deposit['user_id'],
-            'type' => 'deposit',
-            'amount' => $amount,
-            'balance_before' => $earningBalanceBefore,
-            'balance_after' => $earningBalanceAfter,
-            'description' => 'Deposit approved: ' . $amount . ' ' . (string) ($deposit['currency'] ?? ''),
-            'reference_id' => $depositId,
-            'reference_type' => 'deposit'
-        ]);
 
         \Core\Database::commit();
 
         try {
             \Core\Database::insert('notifications', [
-                'user_id' => (int) $deposit['user_id'],
+                'user_id' => $userId,
                 'title' => 'Deposit Approved',
                 'message' => 'Your deposit of ' . number_format($amount, 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' has been approved and added to your balance.',
                 'type' => 'success',
                 'reference_type' => 'deposit',
                 'reference_id' => $depositId
             ]);
-        } catch (\Exception $e) {
-            if (class_exists(\Core\Logger::class)) {
-                \Core\Logger::error('Approve deposit notification error: ' . $e->getMessage());
-            }
-        }
-
-        try {
             \Core\Database::insert('admin_notifications', [
-                'user_id' => (int) $deposit['user_id'],
+                'user_id' => $userId,
                 'message' => 'Deposit #' . $depositId . ' approved: ' . number_format($amount, 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' added to user balance.',
                 'type' => 'deposit'
             ]);
         } catch (\Exception $e) {
             if (class_exists(\Core\Logger::class)) {
-                \Core\Logger::error('Admin notification error: ' . $e->getMessage());
+                \Core\Logger::error('Deposit approve notification error: ' . $e->getMessage());
             }
         }
 
-        $_SESSION['flash_success'] = 'Deposit approved successfully.';
+        $_SESSION['flash_success'] = 'Deposit approved. Earning + Advisor balance updated by ' . number_format($amount, 8) . '.';
         $response->redirect('/admin/deposits');
     } catch (\Exception $e) {
         if (\Core\Database::inTransaction()) {
