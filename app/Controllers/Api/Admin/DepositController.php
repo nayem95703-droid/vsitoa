@@ -66,7 +66,7 @@ class DepositController
             }
 
             $user = Database::fetch(
-                "SELECT balance FROM users WHERE user_id = ? FOR UPDATE",
+                "SELECT balance, advisor_balance FROM users WHERE user_id = ? FOR UPDATE",
                 [(int) $deposit['user_id']]
             );
 
@@ -77,12 +77,17 @@ class DepositController
             }
 
             $balanceBefore = (float) ($user['balance'] ?? 0);
+            $advisorBalanceBefore = (float) ($user['advisor_balance'] ?? 0);
             $amount = (float) ($deposit['amount'] ?? 0);
             $balanceAfter = $balanceBefore + $amount;
+            $advisorBalanceAfter = $advisorBalanceBefore + $amount;
 
             Database::update(
                 'users',
-                ['balance' => $balanceAfter],
+                [
+                    'balance' => $balanceAfter,
+                    'advisor_balance' => $advisorBalanceAfter,
+                ],
                 'user_id = ?',
                 [(int) $deposit['user_id']]
             );
