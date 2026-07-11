@@ -169,23 +169,29 @@ function logout() {
 
 // Load notifications
 function loadNotifications() {
+    const token = localStorage.getItem('jwt_token');
+    if (!token) return;
     fetch('<?= $basePath ?>/api/user/notifications', {
         headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
+            'Authorization': 'Bearer ' + token
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             const notifications = data.data.filter(n => !n.is_read);
-            document.querySelector('.notification-count').textContent = notifications.length;
+            const badge = document.querySelector('.notification-count');
+            if (badge) {
+                badge.textContent = notifications.length;
+                badge.style.display = notifications.length > 0 ? '' : 'none';
+            }
             
             const notificationList = document.getElementById('notification-list');
-            if (notifications.length > 0) {
+            if (notificationList && notifications.length > 0) {
                 const html = notifications.map(notif => `
                     <li>
-                        <a class="dropdown-item" href="#" onclick="markNotificationRead(${notif.notification_id})">
-                            <div class="small">${notif.title}</div>
+                        <a class="dropdown-item" href="#" onclick="event.preventDefault(); markNotificationRead(${notif.id})">
+                            <div class="small fw-bold">${notif.title || 'Notification'}</div>
                             <div class="text-muted small">${notif.message}</div>
                             <div class="text-muted small">${new Date(notif.created_at).toLocaleString()}</div>
                         </a>
@@ -194,7 +200,8 @@ function loadNotifications() {
                 notificationList.innerHTML = '<li><h6 class="dropdown-header">Notifications</h6></li><li><hr class="dropdown-divider"></li>' + html + '<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-center" href="<?= $basePath ?>/notifications">View all notifications</a></li>';
             }
         }
-    });
+    })
+    .catch(() => {});
 }
 
 // Auto-refresh balance
