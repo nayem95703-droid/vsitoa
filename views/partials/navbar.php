@@ -75,7 +75,7 @@
                         </span>
                     </li>
                     
-                    <!-- Notifications -->
+                    <!-- Notifications (commented out - user requested removal)
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-bell"></i>
@@ -84,9 +84,10 @@
                         <ul class="dropdown-menu dropdown-menu-end" id="notification-list">
                             <li><h6 class="dropdown-header">Notifications</h6></li>
                             <li><hr class="dropdown-divider"></li>
-<li><a class="dropdown-item text-center" href="<?= $basePath ?>/notifications">View all notifications</a></li>
+                            <li><a class="dropdown-item text-center" href="<?= $basePath ?>/notifications">View all notifications</a></li>
                         </ul>
                     </li>
+                    -->
                     
                     <!-- User Menu -->
                     <li class="nav-item dropdown">
