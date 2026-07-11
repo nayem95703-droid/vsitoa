@@ -179,6 +179,20 @@ $router->get('/admin/deposits', function($request, $response) {
 
     $search = trim((string) $request->get('search', ''));
     $currency = trim((string) $request->get('currency', ''));
+    $activeTab = trim((string) $request->get('tab', 'deposits'));
+    if (!in_array($activeTab, ['deposits', 'withdrawals'], true)) {
+        $activeTab = 'deposits';
+    }
+
+    $summary = [
+        'total_deposited' => (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved'"),
+        'total_approved' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved'"),
+        'total_pending' => (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'pending'"),
+        'pending_count' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'pending'"),
+        'total_withdrawn' => (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM withdrawals WHERE status = 'paid'"),
+        'total_withdraw_count' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status IN ('paid','pending')"),
+    ];
+    $summary['net_balance'] = $summary['total_deposited'] - $summary['total_withdrawn'];
 
     $counts = [
         'pending' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'pending'"),
@@ -219,6 +233,25 @@ $router->get('/admin/deposits', function($request, $response) {
 
     $sql .= " ORDER BY d.created_at DESC LIMIT 200";
     $deposits = \Core\Database::fetchAll($sql, $params);
+
+    $wstatus = trim((string) $request->get('wstatus', 'pending'));
+    if (!in_array($wstatus, ['pending', 'paid', 'rejected'], true)) {
+        $wstatus = 'pending';
+    }
+
+    $withdrawalCounts = [
+        'pending' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'"),
+        'approved' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'paid'"),
+        'rejected' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'rejected'")
+    ];
+
+    $withdrawals = \Core\Database::fetchAll(
+        "SELECT w.withdrawal_id, w.user_id, u.username, u.email, w.currency, w.amount, w.wallet_address, w.status, w.admin_notes, w.created_at
+         FROM withdrawals w JOIN users u ON u.user_id = w.user_id
+         WHERE w.status = ?
+         ORDER BY w.created_at DESC LIMIT 200",
+        [$wstatus]
+    );
 
     include ROOT_PATH . '/views/admin/deposits.php';
 });
@@ -445,6 +478,113 @@ $router->post('/admin/deposits/reject', function($request, $response) {
 $router->get('/admin/withdrawals', function($request, $response) {
     \Core\Auth::requireAdmin();
     include ROOT_PATH . '/views/admin/withdrawals.php';
+});
+
+$router->post('/admin/withdrawals/approve', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $withdrawalId = (int) ($data['withdrawal_id'] ?? 0);
+
+    if ($withdrawalId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid withdrawal.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+        return;
+    }
+
+    try {
+        \Core\Database::beginTransaction();
+
+        $w = \Core\Database::fetch(
+            "SELECT withdrawal_id, user_id, currency, amount, status FROM withdrawals WHERE withdrawal_id = ? FOR UPDATE",
+            [$withdrawalId]
+        );
+
+        if (!$w) {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'Withdrawal not found.';
+            $response->redirect('/admin/deposits?tab=withdrawals');
+            return;
+        }
+
+        if (($w['status'] ?? '') !== 'pending') {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'This withdrawal has already been processed.';
+            $response->redirect('/admin/deposits?tab=withdrawals');
+            return;
+        }
+
+        \Core\Database::update('withdrawals', ['status' => 'paid', 'processed_at' => date('Y-m-d H:i:s')], 'withdrawal_id = ?', [$withdrawalId]);
+
+        \Core\Database::insert('admin_notifications', [
+            'user_id' => (int) $w['user_id'],
+            'message' => 'Withdrawal #' . $withdrawalId . ' approved: ' . number_format((float) $w['amount'], 2) . ' ' . (string) ($w['currency'] ?? '') . ' paid.',
+            'type' => 'withdrawal'
+        ]);
+
+        \Core\Database::commit();
+        $_SESSION['flash_success'] = 'Withdrawal approved successfully.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+    } catch (\Exception $e) {
+        if (\Core\Database::inTransaction()) { \Core\Database::rollback(); }
+        $_SESSION['flash_error'] = 'Failed to approve withdrawal.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+    }
+});
+
+$router->post('/admin/withdrawals/reject', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $withdrawalId = (int) ($data['withdrawal_id'] ?? 0);
+    $adminNotes = $data['admin_notes'] ?? null;
+
+    if ($withdrawalId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid withdrawal.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+        return;
+    }
+
+    try {
+        \Core\Database::beginTransaction();
+
+        $w = \Core\Database::fetch(
+            "SELECT withdrawal_id, user_id, currency, amount, status FROM withdrawals WHERE withdrawal_id = ? FOR UPDATE",
+            [$withdrawalId]
+        );
+
+        if (!$w) {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'Withdrawal not found.';
+            $response->redirect('/admin/deposits?tab=withdrawals');
+            return;
+        }
+
+        if (($w['status'] ?? '') !== 'pending') {
+            \Core\Database::rollback();
+            $_SESSION['flash_error'] = 'This withdrawal has already been processed.';
+            $response->redirect('/admin/deposits?tab=withdrawals');
+            return;
+        }
+
+        $wUpdate = ['status' => 'rejected'];
+        if ($adminNotes !== null && $adminNotes !== '') {
+            $wUpdate['admin_notes'] = $adminNotes;
+        }
+        \Core\Database::update('withdrawals', $wUpdate, 'withdrawal_id = ?', [$withdrawalId]);
+
+        \Core\Database::insert('admin_notifications', [
+            'user_id' => (int) $w['user_id'],
+            'message' => 'Withdrawal #' . $withdrawalId . ' rejected: ' . number_format((float) $w['amount'], 2) . ' ' . (string) ($w['currency'] ?? '') . '.' . ($adminNotes ? ' Reason: ' . $adminNotes : ''),
+            'type' => 'warning'
+        ]);
+
+        \Core\Database::commit();
+        $_SESSION['flash_success'] = 'Withdrawal rejected successfully.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+    } catch (\Exception $e) {
+        if (\Core\Database::inTransaction()) { \Core\Database::rollback(); }
+        $_SESSION['flash_error'] = 'Failed to reject withdrawal.';
+        $response->redirect('/admin/deposits?tab=withdrawals');
+    }
 });
 
 $router->get('/admin/ads', function($request, $response) {
