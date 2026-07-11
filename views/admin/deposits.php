@@ -31,6 +31,8 @@ ob_start();
     $status = (string) ($status ?? 'pending');
     $counts = $counts ?? ['pending' => 0, 'approved' => 0, 'rejected' => 0];
     $deposits = $deposits ?? [];
+    $search = $search ?? '';
+    $currency = $currency ?? '';
     ?>
 
     <div class="card admin-card admin-card-hover">
@@ -49,6 +51,26 @@ ob_start();
             </div>
         </div>
         <div class="card-body">
+            <form method="GET" action="<?= $basePath ?>/admin/deposits" class="row g-2 mb-3">
+                <input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+                <div class="col-md-5">
+                    <input type="text" name="search" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Search by username, email, TXID, or ID..." value="<?= htmlspecialchars($search) ?>">
+                </div>
+                <div class="col-md-3">
+                    <select name="currency" class="form-select form-select-sm bg-dark text-white border-secondary">
+                        <option value="">All Currencies</option>
+                        <?php foreach (['BTC', 'TRX', 'ETH', 'USDT'] as $cur): ?>
+                            <option value="<?= $cur ?>" <?= $currency === $cur ? 'selected' : '' ?>><?= $cur ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-sm btn-outline-light w-100"><i class="fas fa-search me-1"></i>Search</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="<?= $basePath ?>/admin/deposits?status=<?= htmlspecialchars($status) ?>" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-times me-1"></i>Clear</a>
+                </div>
+            </form>
             <div class="table-responsive">
                 <table class="table table-dark table-hover admin-table">
                     <thead>

@@ -177,14 +177,16 @@ $router->get('/admin/deposits', function($request, $response) {
         $status = 'pending';
     }
 
+    $search = trim((string) $request->get('search', ''));
+    $currency = trim((string) $request->get('currency', ''));
+
     $counts = [
         'pending' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'pending'"),
         'approved' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved'"),
         'rejected' => (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'rejected'")
     ];
 
-    $deposits = \Core\Database::fetchAll(
-        "SELECT 
+    $sql = "SELECT 
             d.deposit_id,
             d.user_id,
             u.username,
@@ -198,11 +200,25 @@ $router->get('/admin/deposits', function($request, $response) {
             d.created_at
         FROM deposits d
         JOIN users u ON u.user_id = d.user_id
-        WHERE d.status = ?
-        ORDER BY d.created_at DESC
-        LIMIT 200",
-        [$status]
-    );
+        WHERE d.status = ?";
+    $params = [$status];
+
+    if ($search !== '') {
+        $sql .= " AND (u.username LIKE ? OR u.email LIKE ? OR d.txid LIKE ? OR d.deposit_id = ?)";
+        $searchParam = '%' . $search . '%';
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $params[] = $searchParam;
+        $params[] = (int) $search;
+    }
+
+    if ($currency !== '' && in_array($currency, ['BTC', 'TRX', 'ETH', 'USDT'], true)) {
+        $sql .= " AND d.currency = ?";
+        $params[] = $currency;
+    }
+
+    $sql .= " ORDER BY d.created_at DESC LIMIT 200";
+    $deposits = \Core\Database::fetchAll($sql, $params);
 
     include ROOT_PATH . '/views/admin/deposits.php';
 });
@@ -448,6 +464,25 @@ $router->get('/admin/referrals', function($request, $response) {
 
 $router->get('/admin/reports', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $stats = [];
+    $stats['total_deposited'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved'");
+    $stats['pending_amount'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'pending'");
+    $stats['today_deposited'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved' AND DATE(created_at) = CURDATE()");
+    $stats['unique_depositors'] = (int) \Core\Database::fetchColumn("SELECT COUNT(DISTINCT user_id) FROM deposits WHERE status = 'approved'");
+    $stats['week_deposited'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+    $stats['week_count'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+    $stats['month_deposited'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+    $stats['month_count'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved' AND created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+    $stats['month_approved'] = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM deposits WHERE status = 'approved' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())");
+    $stats['month_approved_count'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM deposits WHERE status = 'approved' AND YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE())");
+
+    $recentDeposits = \Core\Database::fetchAll(
+        "SELECT d.deposit_id, u.username, u.email, d.currency, d.amount, d.status, d.created_at
+         FROM deposits d JOIN users u ON u.user_id = d.user_id
+         ORDER BY d.created_at DESC LIMIT 20"
+    );
+
     include ROOT_PATH . '/views/admin/reports.php';
 });
 

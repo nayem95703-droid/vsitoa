@@ -8,6 +8,10 @@ if ($currentPath === '') {
     $currentPath = '/';
 }
 $admin = \Core\Auth::admin() ?? [];
+$adminUnreadCount = 0;
+try {
+    $adminUnreadCount = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM admin_notifications WHERE is_read = 0");
+} catch (\Exception $e) { /* table may not exist yet */ }
 ?>
 <div class="d-flex flex-column flex-shrink-0 p-3 bg-dark text-white admin-sidebar-shell" id="sidebar">
     <div class="d-flex align-items-center justify-content-between mb-3 d-lg-none">
@@ -69,6 +73,9 @@ $admin = \Core\Auth::admin() ?? [];
             <a href="<?= $basePath ?>/admin/notifications" class="nav-link text-white <?= $currentPath === '/admin/notifications' ? 'active' : '' ?>">
                 <i class="fas fa-bell me-2"></i>
                 Notifications
+                <?php if ($adminUnreadCount > 0): ?>
+                    <span class="badge bg-danger ms-auto"><?= $adminUnreadCount > 99 ? '99+' : $adminUnreadCount ?></span>
+                <?php endif; ?>
             </a>
         </li>
         <li class="nav-item">
