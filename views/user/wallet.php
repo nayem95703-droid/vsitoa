@@ -5,7 +5,6 @@ $show_sidebar = true;
 $show_footer = true;
 
 // Get user data with safe defaults
-$user = \Core\Auth::user() ?? [];
 $userId = \Core\Auth::id();
 
 if (!$userId) {
