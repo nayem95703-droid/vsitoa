@@ -80,6 +80,13 @@ include_once ROOT_PATH . '/views/partials/blueprint_badge.php';
         </li>
         
         <li class="nav-item">
+            <a href="<?= $basePath ?>/notifications" class="nav-link text-dark <?= $currentPath === '/notifications' ? 'active' : '' ?>">
+                <i class="fas fa-bell me-2"></i>
+                Notifications
+            </a>
+        </li>
+        
+        <li class="nav-item">
             <a href="#advisor-submenu" data-bs-toggle="collapse" class="nav-link text-dark <?= strpos($currentPath, '/advisor') === 0 ? 'active' : '' ?>">
                 <i class="fas fa-ad me-2"></i>
                 Advisor

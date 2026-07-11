@@ -66,6 +66,11 @@ $router->get('/tasks', ['App\Controllers\TaskController', 'showTasks']);
 $router->get('/wallet', ['App\Controllers\WalletController', 'showWallet']);
 $router->post('/wallet/transfer-advisor', ['App\Controllers\WalletController', 'transferToAdvisor']);
 
+$router->get('/notifications', function($request, $response) {
+    \Core\Auth::requireAuth();
+    include ROOT_PATH . '/views/user/notifications.php';
+});
+
 $router->get('/notifications/mark-read', function($request, $response) {
     \Core\Auth::requireAuth();
     $id = (int) ($_GET['id'] ?? 0);
@@ -78,6 +83,33 @@ $router->get('/notifications/mark-read', function($request, $response) {
     }
     $referer = $_SERVER['HTTP_REFERER'] ?? '/dashboard';
     $response->redirect($referer);
+});
+
+$router->post('/notifications/mark-read', function($request, $response) {
+    \Core\Auth::requireAuth();
+    $data = $request->all();
+    $id = (int) ($data['id'] ?? 0);
+    $userId = \Core\Auth::id();
+    if ($id > 0 && $userId) {
+        \Core\Database::query(
+            "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+            [$id, $userId]
+        );
+    }
+    $response->redirect('/notifications');
+});
+
+$router->post('/notifications/mark-all-read', function($request, $response) {
+    \Core\Auth::requireAuth();
+    $userId = \Core\Auth::id();
+    if ($userId) {
+        \Core\Database::query(
+            "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0",
+            [$userId]
+        );
+    }
+    $_SESSION['flash_success'] = 'All notifications marked as read.';
+    $response->redirect('/notifications');
 });
 
 $router->get('/deposit', ['App\Controllers\WalletController', 'showDeposit']);
