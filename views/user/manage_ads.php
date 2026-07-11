@@ -3,6 +3,12 @@ $page_title = 'Manage Advertisements - ' . Config::get('app.name');
 $show_navbar = true;
 $show_sidebar = true;
 $show_footer = true;
+$stats = $stats ?? [];
+$total = $total ?? 0;
+$limit = $limit ?? 10;
+$page = $page ?? 1;
+$status = $status ?? 'all';
+$ads = $ads ?? [];
 
 ob_start();
 ?>
@@ -213,21 +219,21 @@ ob_start();
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-start">
-                                            <?php if ($ad['preview_image']): ?>
-                                                <img src="<?= $ad['preview_image'] ?>" alt="Preview" class="me-3" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">
+                                            <?php if (!empty($ad['preview_image'])): ?>
+                                                <img src="<?= htmlspecialchars($ad['preview_image']) ?>" alt="Preview" class="me-3" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">
                                             <?php else: ?>
                                                 <div class="ad-placeholder me-3" style="width: 50px; height: 50px; background: #f8f9fc; display: flex; align-items: center; justify-content: center; border-radius: 5px;">
                                                     <i class="fas fa-ad text-muted"></i>
                                                 </div>
                                             <?php endif; ?>
                                             <div>
-                                                <h6 class="mb-1"><?= htmlspecialchars($ad['ad_title']) ?></h6>
-                                                <small class="text-muted"><?= substr($ad['target_url'], 0, 50) ?>...</small>
+                                                <h6 class="mb-1"><?= htmlspecialchars($ad['ad_title'] ?? '') ?></h6>
+                                                <small class="text-muted"><?= htmlspecialchars(substr($ad['target_url'] ?? '', 0, 50)) ?>...</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-primary"><?= ucfirst($ad['ad_type']) ?></span>
+                                        <span class="badge bg-primary"><?= ucfirst($ad['ad_type'] ?? '') ?></span>
                                     </td>
                                     <td>
                                         <?php
@@ -243,25 +249,27 @@ ob_start();
                                     </td>
                                     <td>
                                         <div class="small">
-                                            <strong><?= number_format($ad['total_views'] - $ad['remaining_views']) ?></strong> / <?= number_format($ad['total_views']) ?>
+                                            <strong><?= number_format(($ad['total_views'] ?? 0) - ($ad['remaining_views'] ?? 0)) ?></strong> / <?= number_format($ad['total_views'] ?? 0) ?>
                                         </div>
                                         <div class="progress" style="height: 5px;">
                                             <?php
-                                            $progress = ($ad['total_views'] > 0) ? (($ad['total_views'] - $ad['remaining_views']) / $ad['total_views']) * 100 : 0;
+                                            $tv = $ad['total_views'] ?? 0;
+                                            $rv = $ad['remaining_views'] ?? 0;
+                                            $progress = ($tv > 0) ? (($tv - $rv) / $tv) * 100 : 0;
                                             ?>
                                             <div class="progress-bar" style="width: <?= $progress ?>%"></div>
                                         </div>
                                     </td>
                                     <td>
-                                        <small><?= number_format($ad['total_budget'], 8) ?> USDT</small>
+                                        <small><?= number_format($ad['total_budget'] ?? 0, 8) ?> USDT</small>
                                     </td>
                                     <td>
-                                        <small class="<?= $ad['spent_amount'] > 0 ? 'text-danger' : 'text-muted' ?>">
-                                            <?= number_format($ad['spent_amount'], 8) ?> USDT
+                                        <small class="<?= ($ad['spent_amount'] ?? 0) > 0 ? 'text-danger' : 'text-muted' ?>">
+                                            <?= number_format($ad['spent_amount'] ?? 0, 8) ?> USDT
                                         </small>
                                     </td>
                                     <td>
-                                        <small><?= date('M j, Y', strtotime($ad['created_at'])) ?></small>
+                                        <small><?= date('M j, Y', strtotime($ad['created_at'] ?? 'now')) ?></small>
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
