@@ -119,6 +119,12 @@ class DepositController
                 'reference_id' => $depositId
             ]);
 
+            Database::insert('admin_notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'message' => 'Deposit #' . $depositId . ' approved: ' . number_format($amount, 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' added to user balance.',
+                'type' => 'deposit'
+            ]);
+
             Database::commit();
             $response->json(['success' => true, 'message' => 'Deposit approved successfully']);
         } catch (\Exception $e) {
@@ -171,6 +177,12 @@ class DepositController
                 'type' => 'danger',
                 'reference_type' => 'deposit',
                 'reference_id' => $depositId
+            ]);
+
+            Database::insert('admin_notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'message' => 'Deposit #' . $depositId . ' rejected: ' . number_format((float) ($deposit['amount'] ?? 0), 8) . ' ' . (string) ($deposit['currency'] ?? '') . '.' . ($adminNotes ? ' Reason: ' . $adminNotes : ''),
+                'type' => 'warning'
             ]);
 
             Database::commit();

@@ -414,3 +414,15 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_user_id (user_id),
     INDEX idx_is_read (is_read)
 );
+
+-- Admin Notifications Table
+CREATE TABLE IF NOT EXISTS admin_notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    message VARCHAR(255) NOT NULL,
+    type VARCHAR(50) DEFAULT 'info',
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    INDEX idx_is_read (is_read)
+);

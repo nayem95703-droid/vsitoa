@@ -310,6 +310,18 @@ $router->post('/admin/deposits/approve', function($request, $response) {
             }
         }
 
+        try {
+            \Core\Database::insert('admin_notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'message' => 'Deposit #' . $depositId . ' approved: ' . number_format($amount, 8) . ' ' . (string) ($deposit['currency'] ?? '') . ' added to user balance.',
+                'type' => 'deposit'
+            ]);
+        } catch (\Exception $e) {
+            if (class_exists(\Core\Logger::class)) {
+                \Core\Logger::error('Admin notification error: ' . $e->getMessage());
+            }
+        }
+
         $_SESSION['flash_success'] = 'Deposit approved successfully.';
         $response->redirect('/admin/deposits');
     } catch (\Exception $e) {
@@ -388,6 +400,18 @@ $router->post('/admin/deposits/reject', function($request, $response) {
             }
         }
 
+        try {
+            \Core\Database::insert('admin_notifications', [
+                'user_id' => (int) $deposit['user_id'],
+                'message' => 'Deposit #' . $depositId . ' rejected: ' . number_format((float) ($deposit['amount'] ?? 0), 8) . ' ' . (string) ($deposit['currency'] ?? '') . '.' . ($adminNotes ? ' Reason: ' . $adminNotes : ''),
+                'type' => 'warning'
+            ]);
+        } catch (\Exception $e) {
+            if (class_exists(\Core\Logger::class)) {
+                \Core\Logger::error('Admin notification error: ' . $e->getMessage());
+            }
+        }
+
         $_SESSION['flash_success'] = 'Deposit rejected successfully.';
         $response->redirect('/admin/deposits');
     } catch (\Exception $e) {
@@ -429,7 +453,28 @@ $router->get('/admin/reports', function($request, $response) {
 
 $router->get('/admin/notifications', function($request, $response) {
     \Core\Auth::requireAdmin();
+    $notifications = \Core\Database::fetchAll(
+        "SELECT id, user_id, message, type, is_read, created_at FROM admin_notifications ORDER BY created_at DESC LIMIT 100"
+    );
+    $unreadCount = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM admin_notifications WHERE is_read = 0");
     include ROOT_PATH . '/views/admin/notifications.php';
+});
+
+$router->post('/admin/notifications/mark-read', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $id = (int) ($data['id'] ?? 0);
+    if ($id > 0) {
+        \Core\Database::update('admin_notifications', ['is_read' => 1], 'id = ?', [$id]);
+    }
+    $response->redirect('/admin/notifications');
+});
+
+$router->post('/admin/notifications/mark-all-read', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    \Core\Database::query("UPDATE admin_notifications SET is_read = 1 WHERE is_read = 0");
+    $_SESSION['flash_success'] = 'All notifications marked as read.';
+    $response->redirect('/admin/notifications');
 });
 
 $router->get('/admin/settings', function($request, $response) {

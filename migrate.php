@@ -411,7 +411,21 @@ try {
     )");
     echo "   ✅ Notifications table created/verified\n\n";
 
-    // 21. Check if admin exists
+    // 21. Create admin_notifications table
+    echo "2️⃣1️⃣  Creating admin_notifications table...\n";
+    \Core\Database::query("CREATE TABLE IF NOT EXISTS admin_notifications (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        user_id INT,
+        message VARCHAR(255) NOT NULL,
+        type VARCHAR(50) DEFAULT 'info',
+        is_read TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_is_read (is_read)
+    )");
+    echo "   ✅ Admin notifications table created/verified\n\n";
+
+    // 22. Check if admin exists
     echo "2️⃣1️⃣  Checking admin account...\n";
     $adminExists = \Core\Database::fetch(
         "SELECT id FROM admins WHERE username = ?",

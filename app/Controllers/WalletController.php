@@ -257,6 +257,16 @@ class WalletController
             } catch (\Exception $e) {
                 Logger::error("Notification insert error: " . $e->getMessage());
             }
+
+            try {
+                Database::insert('admin_notifications', [
+                    'user_id' => $userId,
+                    'message' => 'New deposit request of ' . number_format((float) $data['amount'], 8) . ' ' . $data['currency'] . ' from user #' . $userId,
+                    'type' => 'deposit'
+                ]);
+            } catch (\Exception $e) {
+                Logger::error("Admin notification insert error: " . $e->getMessage());
+            }
             
             $_SESSION['flash_success'] = 'Deposit request created successfully.';
             $response->redirect('/deposit');

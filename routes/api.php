@@ -102,6 +102,8 @@ $router->put('/admin/settings', ['App\Controllers\Api\Admin\SettingController', 
 $router->get('/admin/notifications', ['App\Controllers\Api\Admin\NotificationController', 'getNotifications']);
 $router->post('/admin/notifications', ['App\Controllers\Api\Admin\NotificationController', 'createNotification']);
 $router->delete('/admin/notifications/{id}', ['App\Controllers\Api\Admin\NotificationController', 'deleteNotification']);
+$router->post('/admin/notifications/mark-all-read', ['App\Controllers\Api\Admin\NotificationController', 'markAllRead']);
+$router->post('/admin/notifications/clear', ['App\Controllers\Api\Admin\NotificationController', 'clearNotifications']);
 
 $router->get('/admin/reports/earnings', ['App\Controllers\Api\Admin\ReportController', 'getEarningsReport']);
 $router->get('/admin/reports/ads', ['App\Controllers\Api\Admin\ReportController', 'getAdsReport']);
