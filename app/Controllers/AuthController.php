@@ -106,7 +106,9 @@ class AuthController
         ], [
             'terms.required' => 'You must agree to the terms and conditions',
             'username.unique' => 'Username already exists',
-            'email.unique' => 'Email already exists'
+            'email.unique' => 'Email already exists',
+            'referral_code.max' => 'Referral code must be 20 characters or fewer',
+            'referral_code.alpha_num' => 'Referral code must contain only letters and numbers'
         ]);
 
         if (!$validator->validate()) {
