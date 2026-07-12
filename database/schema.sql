@@ -454,3 +454,20 @@ CREATE TABLE IF NOT EXISTS email_verifications (
     INDEX idx_token (token),
     INDEX idx_user_id (user_id)
 );
+
+-- Ad Reports Table
+CREATE TABLE IF NOT EXISTS ad_reports (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ad_id INT NOT NULL,
+    reported_by INT NOT NULL,
+    reason VARCHAR(50) NOT NULL DEFAULT 'inappropriate',
+    details TEXT,
+    status ENUM('pending','reviewed','dismissed') DEFAULT 'pending',
+    reviewed_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP NULL,
+    FOREIGN KEY (ad_id) REFERENCES ads(ad_id),
+    FOREIGN KEY (reported_by) REFERENCES users(id),
+    INDEX idx_ad_id (ad_id),
+    INDEX idx_status (status)
+);

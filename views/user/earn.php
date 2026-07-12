@@ -174,6 +174,28 @@ ob_start();
     </div>
 </div>
 
+<!-- Report Ad Modal -->
+<div class="modal fade" id="reportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="fas fa-flag me-2"></i>Report Ad</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="reportModalBody">
+                <!-- Report form will be loaded here -->
+            </div>
+            <input type="hidden" id="reportModalAdId" value="">
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="submitReportBtn" onclick="submitReport()">
+                    <i class="fas fa-paper-plane me-1"></i>Submit Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Ad View Modal -->
 <div class="modal fade" id="adViewModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -279,9 +301,14 @@ function renderAdCard($ad) {
                         </small>
                     " : '') . "
                 </div>
-                <button type='button' class='btn btn-primary btn-sm' onclick='startAdView({$ad['ad_id']})'>
-                    <i class='fas fa-play me-1'></i>View Ad
-                </button>
+                <div class='d-flex gap-2'>
+                    <button type='button' class='btn btn-outline-danger btn-sm' onclick='reportAd({$ad['ad_id']})' title='Report inappropriate content'>
+                        <i class='fas fa-flag'></i>
+                    </button>
+                    <button type='button' class='btn btn-primary btn-sm' onclick='startAdView({$ad['ad_id']})'>
+                        <i class='fas fa-play me-1'></i>View Ad
+                    </button>
+                </div>
             </div>
         </div>
     </div>";
@@ -398,6 +425,60 @@ let mouseMovements = 0;
 document.addEventListener('mousemove', function() {
     mouseMovements++;
 });
+
+function reportAd(adId) {
+    const reasons = {
+        'sexual': 'Sexual/Explicit Content',
+        'violence': 'Violence/Gore',
+        'spam': 'Spam/Misleading',
+        'scam': 'Scam/Fraud',
+        'other': 'Other'
+    };
+
+    let reasonHtml = '<div class="mb-3"><label class="form-label fw-bold">Select Reason:</label><select id="reportReason" class="form-select">';
+    for (const [key, label] of Object.entries(reasons)) {
+        reasonHtml += `<option value="${key}">${label}</option>`;
+    }
+    reasonHtml += '</select></div>';
+    reasonHtml += '<div class="mb-3"><label class="form-label fw-bold">Details (optional):</label><textarea id="reportDetails" class="form-control" rows="2" placeholder="Describe the issue..."></textarea></div>';
+
+    const modal = new bootstrap.Modal(document.getElementById('reportModal'));
+    document.getElementById('reportModalBody').innerHTML = reasonHtml;
+    document.getElementById('reportModalAdId').value = adId;
+    modal.show();
+}
+
+function submitReport() {
+    const adId = document.getElementById('reportModalAdId').value;
+    const reason = document.getElementById('reportReason').value;
+    const details = document.getElementById('reportDetails').value;
+    const btn = document.getElementById('submitReportBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Submitting...';
+
+    fetch((window.VSItoA_BASE_PATH || '') + '/earn/report-ad', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ ad_id: adId, reason: reason, details: details })
+    })
+    .then(r => r.json())
+    .then(res => {
+        bootstrap.Modal.getInstance(document.getElementById('reportModal')).hide();
+        showAlert(res.success ? 'Thank You' : 'Error', res.message, res.success ? 'success' : 'danger');
+    })
+    .catch(() => {
+        bootstrap.Modal.getInstance(document.getElementById('reportModal')).hide();
+        showAlert('Error', 'Failed to submit report.', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Submit Report';
+    });
+}
 
 function startAdView(adId) {
     if (currentAdView) {
