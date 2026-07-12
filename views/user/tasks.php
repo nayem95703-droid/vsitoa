@@ -509,7 +509,7 @@ function filterTasks(type) {
 }
 
 function loadOfferProviders() {
-    fetch('/api/tasks/providers', {
+    fetch((window.VSItoA_BASE_PATH || '') + '/api/tasks/providers', {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
@@ -562,7 +562,7 @@ function showProviderOffers(providerId) {
     };
     
     // Get offers for this provider (in real implementation, this would call the provider's API)
-    fetch(`/api/tasks/providers/${providerId}/offers`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/tasks/providers/${providerId}/offers`, {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
@@ -619,7 +619,7 @@ function displayOffersModal(providerName, offers) {
 }
 
 function showTaskDetails(taskId) {
-    fetch(`/api/tasks/${taskId}`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/tasks/${taskId}`, {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
@@ -724,7 +724,7 @@ function completeOffer(offerId, providerId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
     
-    fetch('/api/tasks/complete-offer', {
+    fetch((window.VSItoA_BASE_PATH || '') + '/api/tasks/complete-offer', {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),

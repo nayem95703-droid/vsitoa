@@ -537,7 +537,7 @@ function initializeEarningsSourcesChart() {
 }
 
 function loadEarningsChart(period) {
-    fetch(`/api/user/earnings?period=${period}`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/user/earnings?period=${period}`, {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
@@ -553,7 +553,7 @@ function loadEarningsChart(period) {
 }
 
 function loadEarningsSources() {
-    fetch('/api/user/earnings-sources', {
+    fetch((window.VSItoA_BASE_PATH || '') + '/api/user/earnings-sources', {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }

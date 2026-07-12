@@ -396,7 +396,7 @@ function viewAdStats(adId) {
     
     modal.show();
     
-    fetch(`/api/advisor/ads/${adId}/stats`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/advisor/ads/${adId}/stats`, {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
@@ -497,7 +497,7 @@ function pauseAd(adId) {
         return;
     }
     
-    fetch(`/api/advisor/ads/${adId}/pause`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/advisor/ads/${adId}/pause`, {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
@@ -523,7 +523,7 @@ function resumeAd(adId) {
         return;
     }
     
-    fetch(`/api/advisor/ads/${adId}/resume`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/advisor/ads/${adId}/resume`, {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
@@ -553,7 +553,7 @@ function deleteAd(adId) {
         return;
     }
     
-    fetch(`/api/advisor/ads/${adId}`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/advisor/ads/${adId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')

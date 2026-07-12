@@ -640,10 +640,20 @@ function submitReport() {
     });
 }
 
+let adViewProcessing = false;
+
 function startAdView(adId) {
     if (currentAdView) {
         showAlert('Warning', 'Please complete the current ad view first', 'warning');
         return;
+    }
+    if (adViewProcessing) return;
+    adViewProcessing = true;
+
+    const btn = document.querySelector(`.task-card[data-ad-id="${adId}"] .btn-watch`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Loading...';
     }
 
     validationData = {
@@ -652,7 +662,7 @@ function startAdView(adId) {
         botDetected: mouseMovements < 5
     };
 
-    fetch(`/api/ads/${adId}/view`, {
+    fetch((window.VSItoA_BASE_PATH || '') + `/api/ads/${adId}/view`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -671,6 +681,13 @@ function startAdView(adId) {
     .catch(error => {
         console.error('Error:', error);
         showAlert('Error', 'Failed to start ad view', 'danger');
+    })
+    .finally(() => {
+        adViewProcessing = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-play me-1"></i>Watch';
+        }
     });
 }
 
@@ -763,7 +780,7 @@ function completeAdView() {
 
     const actualViewTime = Math.floor((Date.now() - viewStartTime) / 1000);
 
-    fetch('/api/ads/complete-view', {
+    fetch((window.VSItoA_BASE_PATH || '') + '/api/ads/complete-view', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -827,7 +844,7 @@ function removeAdCard(adId) {
 }
 
 function updateBalance() {
-    fetch('/api/wallet/balance', {
+    fetch((window.VSItoA_BASE_PATH || '') + '/api/wallet/balance', {
         headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('jwt_token')
         }
