@@ -730,7 +730,7 @@ $router->post('/admin/ads/approve', function($request, $response) {
             return;
         }
 
-        \Core\Database::update('ads', ['status' => 'active', 'started_at' => date('Y-m-d H:i:s')], 'ad_id = ?', [$adId]);
+        \Core\Database::update('ads', ['status' => 'active'], 'ad_id = ?', [$adId]);
 
         \Core\Database::insert('admin_notifications', [
             'user_id' => (int) $ad['user_id'],
