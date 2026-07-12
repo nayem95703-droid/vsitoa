@@ -119,6 +119,120 @@ $router->post('/earn/report-ad', function($request, $response) {
 });
 
 $router->get('/tasks', ['App\Controllers\TaskController', 'showTasks']);
+$router->get('/tasks/{id}/execute', ['App\Controllers\TaskController', 'executeTask']);
+
+// Submit task report (text + image upload)
+$router->post('/tasks/{id}/submit', function($request, $response) {
+    \Core\Auth::requireAuth();
+    $userId = \Core\Auth::id();
+    $taskId = (int) $request->param('id');
+    $data = $request->all();
+
+    $task = \Core\Database::fetch("SELECT id, payment_per_execution FROM tasks WHERE id = ? AND status = 'active'", [$taskId]);
+    if (!$task) {
+        $response->json(['success' => false, 'message' => 'Task not found.'], 404);
+        return;
+    }
+
+    $userTask = \Core\Database::fetch("
+        SELECT * FROM user_tasks 
+        WHERE user_id = ? AND task_id = ? AND status = 'started' AND DATE(started_at) = CURDATE()
+        ORDER BY id DESC LIMIT 1
+    ", [$userId, $taskId]);
+
+    if (!$userTask) {
+        $response->json(['success' => false, 'message' => 'No active task found. Please start the task first.'], 400);
+        return;
+    }
+
+    if (strtotime($userTask['expires_at']) < time()) {
+        \Core\Database::update('user_tasks', ['status' => 'expired'], 'id = ?', [$userTask['id']]);
+        $response->json(['success' => false, 'message' => 'Task time has expired.'], 400);
+        return;
+    }
+
+    $reportText = trim($data['report_text'] ?? '');
+    $submittedUrl = trim($data['submitted_url'] ?? '');
+
+    if (empty($reportText)) {
+        $response->json(['success' => false, 'message' => 'Please write a report.'], 400);
+        return;
+    }
+
+    $screenshotPath = null;
+    if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['proof_image'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array($ext, $allowed)) {
+            $response->json(['success' => false, 'message' => 'Invalid image type. Allowed: JPG, PNG, GIF, WebP.'], 400);
+            return;
+        }
+        if ($file['size'] > 5 * 1024 * 1024) {
+            $response->json(['success' => false, 'message' => 'Image must be under 5MB.'], 400);
+            return;
+        }
+
+        $uploadDir = ROOT_PATH . '/uploads/proofs/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $fileName = 'proof_' . $userId . '_' . $taskId . '_' . time() . '.' . $ext;
+        move_uploaded_file($file['tmp_name'], $uploadDir . $fileName);
+        $screenshotPath = '/uploads/proofs/' . $fileName;
+    }
+
+    $submissionId = \Core\Database::insert('submissions', [
+        'task_id' => $taskId,
+        'worker_id' => $userId,
+        'submitted_url' => $submittedUrl ?: null,
+        'submission_text' => $reportText,
+        'screenshot_path' => $screenshotPath,
+        'ip_address' => $request->ip(),
+        'user_agent' => $request->userAgent(),
+        'status' => 'pending'
+    ]);
+
+    \Core\Database::update('user_tasks', [
+        'status' => 'submitted',
+        'submitted_at' => date('Y-m-d H:i:s')
+    ], 'id = ?', [$userTask['id']]);
+
+    \Core\Database::query(
+        "UPDATE tasks SET current_executions = current_executions + 1 WHERE id = ?",
+        [$taskId]
+    );
+
+    \Core\Database::insert('admin_notifications', [
+        'user_id' => null,
+        'message' => 'New task submission from #' . $userId . ' for task "' . htmlspecialchars_decode($task['title'] ?? 'Task #' . $taskId) . '"',
+        'type' => 'warning'
+    ]);
+
+    $response->json([
+        'success' => true,
+        'message' => 'Report submitted successfully! Waiting for review.'
+    ]);
+});
+
+// Refuse task
+$router->post('/tasks/{id}/refuse', function($request, $response) {
+    \Core\Auth::requireAuth();
+    $userId = \Core\Auth::id();
+    $taskId = (int) $request->param('id');
+
+    $userTask = \Core\Database::fetch("
+        SELECT id FROM user_tasks 
+        WHERE user_id = ? AND task_id = ? AND status = 'started' AND DATE(started_at) = CURDATE()
+        ORDER BY id DESC LIMIT 1
+    ", [$userId, $taskId]);
+
+    if ($userTask) {
+        \Core\Database::update('user_tasks', ['status' => 'refused'], 'id = ?', [$userTask['id']]);
+    }
+
+    $response->json(['success' => true, 'message' => 'Task refused.']);
+});
 
 $router->get('/wallet', ['App\Controllers\WalletController', 'showWallet']);
 $router->post('/wallet/transfer-advisor', ['App\Controllers\WalletController', 'transferToAdvisor']);

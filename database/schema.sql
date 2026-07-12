@@ -72,6 +72,23 @@ CREATE TABLE IF NOT EXISTS tasks (
     INDEX idx_ad_type (ad_type)
 );
 
+-- User Tasks (execution tracking) Table
+CREATE TABLE IF NOT EXISTS user_tasks (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    task_id INT NOT NULL,
+    status ENUM('started','submitted','approved','rejected','refused','expired') DEFAULT 'started',
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL,
+    submitted_at TIMESTAMP NULL,
+    completed_at TIMESTAMP NULL,
+    UNIQUE KEY unique_user_task_day (user_id, task_id, started_at),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (task_id) REFERENCES tasks(id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
 -- Task Submissions Table
 CREATE TABLE IF NOT EXISTS submissions (
     id INT PRIMARY KEY AUTO_INCREMENT,

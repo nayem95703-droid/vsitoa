@@ -3,6 +3,7 @@ $page_title = 'Tasks & Offers - ' . Config::get('app.name');
 $show_navbar = true;
 $show_sidebar = true;
 $show_footer = true;
+$basePath = (string) Config::get('app.base_path', '');
 
 if (!isset($stats) || !is_array($stats)) {
     $stats = [
@@ -454,9 +455,9 @@ function renderTaskCard($task) {
                     </button>
                     " . ($task['user_status'] !== 'approved'
                         ? "
-                        <button type='button' class='btn btn-success btn-sm' onclick='completeTask(" . $task['task_id'] . ")'>
-                            <i class='fas fa-check me-1'></i>Complete
-                        </button>
+                        <a href='" . $basePath . "/tasks/" . $task['task_id'] . "/execute' class='btn btn-success btn-sm'>
+                            <i class='fas fa-play me-1'></i>Start
+                        </a>
                     "
                         : "
                         <button type='button' class='btn btn-outline-secondary btn-sm' disabled>
@@ -708,47 +709,8 @@ function displayTaskDetails(task) {
 }
 
 function completeTask(taskId) {
-    if (!confirm('Are you sure you want to complete this task?')) {
-        return;
-    }
-    
-    const btn = document.getElementById('complete-task-btn');
-    const originalText = btn.innerHTML;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
-    
-    fetch(`/api/tasks/${taskId}/complete`, {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('jwt_token'),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Success', data.message, 'success');
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            if (data.errors) {
-                showValidationErrors(data.errors);
-            } else {
-                showAlert('Error', data.message, 'danger');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('Error', 'Failed to complete task', 'danger');
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    });
+    const basePath = <?= json_encode((string) Config::get('app.base_path', '')) ?>;
+    window.location.href = basePath + '/tasks/' + taskId + '/execute';
 }
 
 function completeOffer(offerId, providerId) {
