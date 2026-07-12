@@ -880,7 +880,6 @@ $router->post('/admin/ads/resume', function($request, $response) {
 
     $response->redirect('/admin/ads');
 });
-});
 
 $router->get('/admin/tasks', function($request, $response) {
     \Core\Auth::requireAdmin();
