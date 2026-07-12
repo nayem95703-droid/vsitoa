@@ -751,14 +751,14 @@ $router->get('/admin/ads', function($request, $response) {
     try {
         if ($status === 'all') {
             $ads = \Core\Database::fetchAll(
-                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at,
+                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.views_received, a.remaining_views, a.spent_amount, a.status, a.created_at,
                  (SELECT COUNT(*) FROM ad_reports ar WHERE ar.ad_id = a.ad_id AND ar.status = 'pending') as report_count
                  FROM ads a JOIN users u ON a.user_id = u.user_id
                  ORDER BY a.created_at DESC LIMIT 200"
             );
         } else {
             $ads = \Core\Database::fetchAll(
-                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at,
+                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.views_received, a.remaining_views, a.spent_amount, a.status, a.created_at,
                  (SELECT COUNT(*) FROM ad_reports ar WHERE ar.ad_id = a.ad_id AND ar.status = 'pending') as report_count
                  FROM ads a JOIN users u ON a.user_id = u.user_id
                  WHERE a.status = ?

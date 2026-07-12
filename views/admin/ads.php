@@ -161,7 +161,7 @@ ob_start();
                                 <th>Title</th>
                                 <th>Type</th>
                                 <th>Cost/View</th>
-                                <th>Views</th>
+                                <th>Views (Received/Total)</th>
                                 <th>Spent</th>
                                 <th>Date</th>
                                 <th>Status</th>
@@ -197,7 +197,12 @@ ob_start();
                                         </td>
                                         <td><span class="badge bg-info"><?= htmlspecialchars((string) ($ad['ad_type'] ?? '')) ?></span></td>
                                         <td><?= number_format((float) ($ad['cost_per_view'] ?? 0), 8) ?></td>
-                                        <td><?= number_format((int) ($ad['total_views'] ?? 0)) ?></td>
+                                        <td>
+                                            <?= number_format((int) ($ad['views_received'] ?? 0)) ?> / <?= number_format((int) ($ad['total_views'] ?? 0)) ?>
+                                            <?php if (($ad['total_views'] ?? 0) > 0): ?>
+                                                <br><small class="text-muted"><?= round(((int) ($ad['views_received'] ?? 0) / (int) $ad['total_views']) * 100) ?>% complete</small>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?= number_format((float) ($ad['spent_amount'] ?? 0), 2) ?></td>
                                         <td><?= !empty($ad['created_at']) ? date('M j, Y', strtotime((string) $ad['created_at'])) : '' ?></td>
                                         <td>

@@ -30,7 +30,7 @@ ob_start();
                 <i class="fas fa-info-circle me-2"></i>
                 <strong>Advisor Balance:</strong> <?= number_format($user['advisor_balance'] ?? 0, 2) ?> USDT
                 <br>
-                <small class="text-muted">Your advisor balance will be deducted when creating the advertisement (including platform fees).</small>
+                <small class="text-muted">Balance is deducted per valid view (pay-as-you-go). Your ad pauses automatically when budget runs out.</small>
             </div>
         </div>
     </div>
@@ -169,15 +169,42 @@ ob_start();
                             
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="cost_per_view" class="form-label">Cost Per View *</label>
+                                    <label for="total_budget" class="form-label">Total Budget *</label>
                                     <div class="input-group">
-                                        <input type="number" class="form-control" id="cost_per_view" name="cost_per_view" required min="<?= htmlspecialchars((string) $defaultCostPerView) ?>" step="<?= htmlspecialchars((string) $defaultCostPerView) ?>" value="<?= htmlspecialchars((string) $defaultCostPerView) ?>">
+                                        <input type="number" class="form-control" id="total_budget" name="total_budget" required min="0.01" step="0.01" value="10.00" placeholder="e.g. 10.00">
                                         <span class="input-group-text">USDT</span>
                                     </div>
-                                    <small class="text-muted">Amount you'll pay for each valid view</small>
+                                    <small class="text-muted">Maximum amount you want to spend on this ad</small>
                                 </div>
-                                <input type="hidden" id="total_views" name="total_views" value="0">
+                                <div class="col-md-6 mb-3">
+                                    <label for="total_views_input" class="form-label">Target Views *</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="total_views_input" name="total_views" required min="100" max="1000000" value="1000" placeholder="e.g. 1000">
+                                        <span class="input-group-text">views</span>
+                                    </div>
+                                    <small class="text-muted">Number of views you want to receive (min 100)</small>
+                                </div>
                             </div>
+
+                            <div class="row mt-2">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Calculated Cost Per View</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="calculated_cpv" readonly>
+                                        <span class="input-group-text">USDT/view</span>
+                                    </div>
+                                    <small class="text-muted">Auto-calculated: Budget ÷ Target Views</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Total Cost (incl. 20% fee)</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="total_cost_display" readonly>
+                                        <span class="input-group-text">USDT</span>
+                                    </div>
+                                    <small class="text-muted">Amount deducted from your balance</small>
+                                </div>
+                            </div>
+                            <input type="hidden" id="cost_per_view" name="cost_per_view" value="">
                         </div>
 
                         <!-- Targeting Options -->
@@ -303,12 +330,12 @@ ob_start();
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <h6>Current Rates</h6>
+                        <h6>How It Works</h6>
                         <ul class="list-unstyled">
-                            <li><strong>Minimum Cost Per View:</strong> <?= htmlspecialchars((string) $defaultCostPerView) ?> USDT</li>
-                            <li><strong>Platform Fee:</strong> 20% of total budget</li>
-                            <li><strong>Minimum Views:</strong> 100</li>
-                            <li><strong>Maximum Views:</strong> 1,000,000</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Enter your <strong>Total Budget</strong> and <strong>Target Views</strong></li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Cost Per View is auto-calculated</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></li>Balance is deducted per valid view (pay-as-you-go)</li>
+                            <li><i class="fas fa-arrow-right text-primary me-2"></i>Ad pauses automatically when budget runs out</li>
                         </ul>
                     </div>
 
@@ -316,24 +343,18 @@ ob_start();
                         <h6>Example Calculation</h6>
                         <div class="border p-3 rounded">
                             <small>
-                                <?php
-                                $exampleViews = 1000;
-                                $exampleCostPerView = $defaultCostPerView;
-                                $exampleAdCost = $exampleViews * $exampleCostPerView;
-                                $examplePlatformFee = $exampleAdCost * 0.2;
-                                $exampleTotal = $exampleAdCost + $examplePlatformFee;
-                                ?>
-                                <?= number_format($exampleViews) ?> views @ <?= htmlspecialchars((string) $exampleCostPerView) ?> USDT each<br>
-                                Ad Cost: <?= number_format($exampleAdCost, 8) ?> USDT<br>
-                                Platform Fee (20%): <?= number_format($examplePlatformFee, 8) ?> USDT<br>
-                                <strong>Total: <?= number_format($exampleTotal, 8) ?> USDT</strong>
+                                Budget: 10.00 USDT<br>
+                                Target Views: 1,000<br>
+                                <strong>CPV = 10 ÷ 1,000 = 0.01000000 USDT</strong><br>
+                                Platform Fee (20%): 2.00 USDT<br>
+                                <strong>Total Cost: 12.00 USDT</strong>
                             </small>
                         </div>
                     </div>
 
                     <div class="text-muted small">
                         <i class="fas fa-lightbulb me-2"></i>
-                        <strong>Tip:</strong> Higher cost per view may attract more viewers and get your ad seen faster!
+                        <strong>Tip:</strong> Higher budget per view attracts more viewers and gets your ad seen faster!
                     </div>
                 </div>
             </div>
@@ -437,8 +458,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Budget calculation
-    const costPerView = document.getElementById('cost_per_view');
-    const totalViews = document.getElementById('total_views');
+    const totalBudgetInput = document.getElementById('total_budget');
+    const totalViewsInput = document.getElementById('total_views_input');
+    const costPerViewHidden = document.getElementById('cost_per_view');
+    const calculatedCpvDisplay = document.getElementById('calculated_cpv');
+    const totalCostDisplay = document.getElementById('total_cost_display');
     const userBalance = <?= $user['advisor_balance'] ?? 0 ?>;
     const viewTime = document.getElementById('view_time');
     const watchTimeTariff = document.getElementById('watch_time_tariff');
@@ -490,9 +514,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function updateScheduleSummary(totalBudget) {
-        const cpv = toNumber(costPerView.value, 0);
-        const views = parseInt(totalViews.value, 10) || 0;
+    function updateScheduleSummary() {
+        const budget = toNumber(totalBudgetInput.value, 0);
+        const views = parseInt(totalViewsInput.value, 10) || 0;
         const speed = parseInt(executionSpeed.value, 10) || 0;
 
         const dailyLimitEl = document.getElementById('daily-limit');
@@ -503,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (!speed || views <= 0 || cpv <= 0) {
+        if (!speed || views <= 0 || budget <= 0) {
             dailyLimitEl.textContent = '—';
             daysEl.textContent = '—';
             spendPerDayEl.textContent = '—';
@@ -511,66 +535,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const days = Math.max(1, Math.ceil(views / speed));
-        const viewsPerDay = Math.min(speed, views);
-        const platformFeePercent = 20;
-        const spendPerDay = (cpv * viewsPerDay) * (1 + platformFeePercent / 100);
-
         dailyLimitEl.textContent = `${speed.toLocaleString()} views/day`;
         daysEl.textContent = `${days} day${days > 1 ? 's' : ''}`;
-        spendPerDayEl.textContent = formatUSDT(spendPerDay);
+        spendPerDayEl.textContent = formatUSDT(budget * 1.2);
     }
 
     function calculateBudget() {
-        const cpv = parseFloat(costPerView.value) || 0;
-        const views = parseInt(totalViews.value) || 0;
+        const budget = parseFloat(totalBudgetInput.value) || 0;
+        const views = parseInt(totalViewsInput.value, 10) || 0;
         const platformFeePercent = 20;
-        
-        const adCost = cpv * views;
-        const platformFee = adCost * (platformFeePercent / 100);
-        const totalBudget = adCost + platformFee;
-        const remainingBalance = userBalance - totalBudget;
 
-        const adCostEl = document.getElementById('ad-cost');
-        const platformFeeEl = document.getElementById('platform-fee');
-        const totalBudgetEl = document.getElementById('total-budget');
-        const remainingEl = document.getElementById('remaining-balance');
-
-        if (adCostEl) adCostEl.textContent = formatUSDT(adCost);
-        if (platformFeeEl) platformFeeEl.textContent = formatUSDT(platformFee);
-        if (totalBudgetEl) totalBudgetEl.textContent = formatUSDT(totalBudget);
-        if (remainingEl) {
-            remainingEl.textContent = formatUSDT(remainingBalance);
-            if (remainingBalance < 0) {
-                remainingEl.className = 'text-danger';
-            } else if (remainingBalance < totalBudget * 0.1) {
-                remainingEl.className = 'text-warning';
-            } else {
-                remainingEl.className = 'text-info';
-            }
+        let cpv = 0;
+        let totalCost = 0;
+        if (views > 0 && budget > 0) {
+            cpv = budget / views;
+            totalCost = budget + (budget * platformFeePercent / 100);
         }
 
-        updateScheduleSummary(totalBudget);
-    }
+        costPerViewHidden.value = cpv > 0 ? cpv.toFixed(8) : '';
+        if (calculatedCpvDisplay) calculatedCpvDisplay.value = cpv > 0 ? cpv.toFixed(8) + ' USDT' : '—';
+        if (totalCostDisplay) totalCostDisplay.value = totalCost > 0 ? formatUSDT(totalCost) : '—';
 
-    function updateAutoTotalViews() {
-        const cpv = parseFloat(costPerView.value) || 0;
-        if (cpv <= 0) {
-            totalViews.value = '0';
-            return;
-        }
-
-        const maxViews = Math.floor(userBalance / cpv);
-        totalViews.value = String(Math.max(0, Math.min(1000000, maxViews)));
+        updateScheduleSummary();
     }
 
     function formatUSDT(amount) {
         return amount.toFixed(2) + ' USDT';
     }
 
-    costPerView.addEventListener('input', function() {
-        updateAutoTotalViews();
-        calculateBudget();
-    });
+    totalBudgetInput.addEventListener('input', calculateBudget);
+    totalViewsInput.addEventListener('input', calculateBudget);
 
     buildWatchTimeTariffOptions();
     watchTimeTariff.addEventListener('change', function() {
@@ -586,10 +580,12 @@ document.addEventListener('DOMContentLoaded', function() {
             viewTime.value = String(seconds);
         }
         if (Number.isFinite(cost)) {
-            costPerView.value = String(cost);
+            const views = parseInt(totalViewsInput.value, 10) || 0;
+            if (views > 0) {
+                totalBudgetInput.value = (cost * views).toFixed(2);
+            }
         }
 
-        updateAutoTotalViews();
         calculateBudget();
     });
 
@@ -600,7 +596,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    updateAutoTotalViews();
     calculateBudget();
 
     // Image preview

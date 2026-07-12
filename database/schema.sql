@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS ads (
     cost_per_view DECIMAL(18,8) NOT NULL,
     total_views INT NOT NULL,
     remaining_views INT NOT NULL,
+    views_received INT DEFAULT 0,
     spent_amount DECIMAL(18,8) DEFAULT 0,
     total_budget DECIMAL(18,8) NOT NULL,
     platform_fee_percent DECIMAL(5,2) DEFAULT 20,
@@ -176,10 +177,9 @@ CREATE TABLE IF NOT EXISTS ads (
     FOREIGN KEY (user_id) REFERENCES users(id),
     INDEX idx_user_id (user_id),
     INDEX idx_status (status),
-    INDEX idx_ad_type (ad_type)
+    INDEX idx_ad_type (ad_type),
+    INDEX idx_views_received (views_received)
 );
-
--- Ad Views Table
 CREATE TABLE IF NOT EXISTS ad_views (
     view_id INT PRIMARY KEY AUTO_INCREMENT,
     ad_id INT NOT NULL,

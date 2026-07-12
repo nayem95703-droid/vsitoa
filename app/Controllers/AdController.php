@@ -37,7 +37,7 @@ class AdController
                 timer_type
             FROM ads 
             WHERE status = 'active' 
-            AND remaining_views > 0
+            AND views_received < total_views
             AND user_id != ?
             ORDER BY created_at DESC
             LIMIT 50
@@ -72,7 +72,7 @@ class AdController
         $offset = ($page - 1) * $limit;
 
         // Build query
-        $whereClause = "WHERE status = 'active' AND remaining_views > 0 AND user_id != ?";
+        $whereClause = "WHERE status = 'active' AND views_received < total_views AND user_id != ?";
         $params = [$userId];
 
         if ($type !== 'all') {
@@ -146,11 +146,13 @@ class AdController
                     view_time,
                     cost_per_view,
                     remaining_views,
+                    views_received,
+                    total_views,
                     platform_fee_percent
                 FROM ads 
                 WHERE ad_id = ? 
                 AND status = 'active'
-                AND remaining_views > 0
+                AND views_received < total_views
                 FOR UPDATE
             ", [$adId]);
 
@@ -317,7 +319,7 @@ class AdController
 
                 // Lock ad + advertiser to charge pay-as-you-go
                 $ad = Database::fetch(
-                    "SELECT ad_id, user_id as advertiser_id, ad_title, status, remaining_views
+                    "SELECT ad_id, user_id as advertiser_id, ad_title, status, remaining_views, views_received, total_views
                     FROM ads
                     WHERE ad_id = ?
                     FOR UPDATE",
@@ -384,7 +386,8 @@ class AdController
                 // Update ad counters
                 Database::query(
                     "UPDATE ads
-                    SET spent_amount = COALESCE(spent_amount, 0) + ?
+                    SET spent_amount = COALESCE(spent_amount, 0) + ?,
+                        views_received = COALESCE(views_received, 0) + 1
                     WHERE ad_id = ?",
                     [$costPerView, $adView['ad_id']]
                 );

@@ -32,7 +32,7 @@ class AdvisorController
                 COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused_ads,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_ads,
                 COALESCE(SUM(total_views), 0) as total_views,
-                COALESCE(SUM(remaining_views), 0) as remaining_views,
+                COALESCE(SUM(views_received), 0) as views_received,
                 COALESCE(SUM(spent_amount), 0) as total_spent,
                 COALESCE(SUM(total_budget), 0) as total_budget
             FROM ads 
@@ -47,7 +47,7 @@ class AdvisorController
                 ad_type,
                 status,
                 total_views,
-                remaining_views,
+                views_received,
                 spent_amount,
                 total_budget,
                 created_at
@@ -122,7 +122,7 @@ class AdvisorController
                 'view_time' => 'required|integer|min:5|max:300',
                 'auto_redirect' => 'boolean',
                 'timer_type' => 'required|in:countdown,progress',
-                'cost_per_view' => 'required|numeric|min:0.00000001',
+                'total_budget' => 'required|numeric|min:0.01',
                 'total_views' => 'required|integer|min:100|max:1000000',
                 'target_countries' => 'nullable|array',
                 'device_type' => 'required|in:all,mobile,desktop',
@@ -131,7 +131,7 @@ class AdvisorController
             ], [
                 'ad_title.required' => 'Ad title is required',
                 'target_url.url' => 'Please enter a valid URL',
-                'cost_per_view.min' => 'Cost per view must be greater than 0',
+                'total_budget.min' => 'Total budget must be at least 0.01 USDT',
                 'total_views.min' => 'Total views must be at least 100'
             ]);
             
@@ -145,16 +145,19 @@ class AdvisorController
             // Get user's current balance
             $user = Database::fetch("SELECT advisor_balance FROM users WHERE user_id = ? FOR UPDATE", [$userId]);
             
-            // Calculate total budget
+            // Calculate cost per view from budget / views
+            $totalBudget = (float) $data['total_budget'];
+            $totalViews = (int) $data['total_views'];
+            $costPerView = $totalBudget / $totalViews;
+            
             $platformFeePercent = Config::get('rates.platform_fee') ?? 20;
-            $totalBudget = $data['cost_per_view'] * $data['total_views'];
             $platformFee = $totalBudget * ($platformFeePercent / 100);
             $finalPayableAmount = $totalBudget + $platformFee;
             
-            // Check if user has sufficient balance to start at least one view
-            if ($user['advisor_balance'] < (float) $data['cost_per_view']) {
+            // Check if user has sufficient balance
+            if ((float) $user['advisor_balance'] < $finalPayableAmount) {
                 Database::rollback();
-                $response->error('Insufficient balance to start this ad. Please deposit more funds.', 400);
+                $response->error('Insufficient balance. You need ' . number_format($finalPayableAmount, 2) . ' USDT (budget + 20% platform fee) but have ' . number_format((float) $user['advisor_balance'], 2) . ' USDT.', 400);
                 return;
             }
             
@@ -176,9 +179,10 @@ class AdvisorController
                 'view_time' => $data['view_time'],
                 'auto_redirect' => !empty($data['auto_redirect']) ? 1 : 0,
                 'timer_type' => $data['timer_type'],
-                'cost_per_view' => $data['cost_per_view'],
-                'total_views' => $data['total_views'],
-                'remaining_views' => $data['total_views'],
+                'cost_per_view' => $costPerView,
+                'total_views' => $totalViews,
+                'remaining_views' => $totalViews,
+                'views_received' => 0,
                 'total_budget' => $totalBudget,
                 'platform_fee_percent' => $platformFeePercent,
                 'target_countries' => !empty($data['target_countries']) ? json_encode($data['target_countries']) : null,
@@ -195,7 +199,8 @@ class AdvisorController
                 'ad_title' => $data['ad_title'],
                 'ad_type' => $data['ad_type'],
                 'total_budget' => $totalBudget,
-                'total_views' => $data['total_views']
+                'cost_per_view' => $costPerView,
+                'total_views' => $totalViews
             ]);
             
             $response->json([
@@ -256,6 +261,7 @@ class AdvisorController
                 platform_fee_percent,
                 status,
                 total_views,
+                views_received,
                 remaining_views,
                 spent_amount,
                 total_budget,
@@ -286,7 +292,8 @@ class AdvisorController
                 COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused_ads,
                 COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_ads,
                 COALESCE(SUM(spent_amount), 0) as total_spent,
-                COALESCE(SUM(remaining_views), 0) as remaining_views
+                COALESCE(SUM(views_received), 0) as views_received,
+                COALESCE(SUM(total_views), 0) as total_views
             FROM ads 
             WHERE user_id = ?
         ", [$userId]);
@@ -331,6 +338,7 @@ class AdvisorController
                 platform_fee_percent,
                 status,
                 total_views,
+                views_received,
                 remaining_views,
                 spent_amount,
                 total_budget,
@@ -377,7 +385,7 @@ class AdvisorController
         
         // Check if user owns this ad
         $ad = Database::fetch("
-            SELECT ad_id, user_id, status, remaining_views, total_budget, spent_amount
+            SELECT ad_id, user_id, status, remaining_views, views_received, total_views, total_budget, spent_amount
             FROM ads 
             WHERE ad_id = ? AND user_id = ?
         ", [$adId, $userId]);
@@ -547,7 +555,7 @@ class AdvisorController
         
         // Check if user owns this ad
         $ad = Database::fetch("
-            SELECT ad_id, user_id, status, remaining_views
+            SELECT ad_id, user_id, status, remaining_views, views_received, total_views
             FROM ads 
             WHERE ad_id = ? AND user_id = ?
         ", [$adId, $userId]);
@@ -562,8 +570,8 @@ class AdvisorController
             return;
         }
         
-        if ($ad['remaining_views'] <= 0) {
-            $response->error('Cannot resume advertisement with no remaining views', 400);
+        if ($ad['views_received'] >= $ad['total_views']) {
+            $response->error('Cannot resume: all views have been received', 400);
             return;
         }
         

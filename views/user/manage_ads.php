@@ -249,13 +249,13 @@ ob_start();
                                     </td>
                                     <td>
                                         <div class="small">
-                                            <strong><?= number_format(($ad['total_views'] ?? 0) - ($ad['remaining_views'] ?? 0)) ?></strong> / <?= number_format($ad['total_views'] ?? 0) ?>
+                                            <strong><?= number_format((int) ($ad['views_received'] ?? 0)) ?></strong> / <?= number_format($ad['total_views'] ?? 0) ?>
                                         </div>
                                         <div class="progress" style="height: 5px;">
                                             <?php
                                             $tv = $ad['total_views'] ?? 0;
-                                            $rv = $ad['remaining_views'] ?? 0;
-                                            $progress = ($tv > 0) ? (($tv - $rv) / $tv) * 100 : 0;
+                                            $vr = $ad['views_received'] ?? 0;
+                                            $progress = ($tv > 0) ? ($vr / $tv) * 100 : 0;
                                             ?>
                                             <div class="progress-bar" style="width: <?= $progress ?>%"></div>
                                         </div>
@@ -456,7 +456,7 @@ function displayAdStats(data) {
                     <strong>Cost Per View:</strong> ${stats.cost_per_view ? parseFloat(stats.cost_per_view).toFixed(8) + ' USDT' : 'N/A'}
                 </div>
                 <div class="mb-3">
-                    <strong>Remaining Views:</strong> ${stats.remaining_views || 0}
+                    <strong>Views Received:</strong> ${stats.views_received || 0} / ${stats.total_views || 0}
                 </div>
                 <div class="mb-3">
                     <strong>Status:</strong> <span class="badge bg-primary">${stats.status}</span>

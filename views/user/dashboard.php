@@ -108,7 +108,7 @@ try {
 try {
     $availableAds = (int) \Core\Database::fetchColumn("
         SELECT COUNT(*) FROM ads 
-        WHERE status = 'active' AND remaining_views > 0 AND user_id != ?
+        WHERE status = 'active' AND views_received < total_views AND user_id != ?
     ", [$userId]);
 } catch (\Throwable $e) {
     \Core\Logger::warning('Dashboard: failed to load ads count - ' . $e->getMessage());
