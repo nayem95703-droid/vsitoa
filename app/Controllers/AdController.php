@@ -226,7 +226,7 @@ class AdController
                 'user_agent' => $userAgent,
                 'view_time' => $ad['view_time'],
                 'actual_view_time' => 0,
-                'is_valid' => false,
+                'is_valid' => 0,
                 'earned_amount' => $userEarnings
             ]);
 
@@ -266,7 +266,11 @@ class AdController
 
         } catch (\Exception $e) {
             Database::rollback();
-            Logger::error("Ad view error: " . $e->getMessage());
+            Logger::error("Ad view error: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'ad_id' => $adId ?? null,
+                'user_id' => $userId ?? null
+            ]);
             $response->error('Failed to start ad view', 500);
         }
     }
@@ -329,7 +333,7 @@ class AdController
                 if (!$ad) {
                     Database::update(
                         'ad_views',
-                        ['is_valid' => false, 'actual_view_time' => $actualViewTime],
+                        ['is_valid' => 0, 'actual_view_time' => $actualViewTime],
                         'view_id = ?',
                         [$viewId]
                     );
@@ -360,7 +364,7 @@ class AdController
                     Database::update(
                         'ad_views',
                         [
-                            'is_valid' => false,
+                'is_valid' => 0,
                             'actual_view_time' => $actualViewTime
                         ],
                         'view_id = ?',
@@ -418,7 +422,7 @@ class AdController
                 Database::update(
                     'ad_views',
                     [
-                        'is_valid' => true,
+                        'is_valid' => 1,
                         'actual_view_time' => $actualViewTime,
                         'earned_amount' => $userEarnings
                     ],
@@ -479,7 +483,7 @@ class AdController
                 Database::update(
                     'ad_views',
                     [
-                        'is_valid' => false,
+                        'is_valid' => 0,
                         'actual_view_time' => $actualViewTime,
                         'fraud_score' => $this->calculateFraudScore($adView, $validationData)
                     ],
