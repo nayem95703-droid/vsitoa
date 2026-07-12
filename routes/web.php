@@ -541,6 +541,28 @@ $router->post('/admin/deposits/reject', function($request, $response) {
 
 $router->get('/admin/withdrawals', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $status = (string) ($request->get('status', 'pending') ?? 'pending');
+    $counts = ['pending' => 0, 'paid' => 0, 'rejected' => 0];
+    $withdrawals = [];
+
+    try {
+        $counts['pending'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
+        $counts['paid'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'paid'");
+        $counts['rejected'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM withdrawals WHERE status = 'rejected'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $withdrawals = \Core\Database::fetchAll(
+            "SELECT w.withdrawal_id, w.user_id, u.username, u.email, w.currency, w.amount, w.wallet_address, w.status, w.admin_notes, w.created_at, w.processed_at
+             FROM withdrawals w JOIN users u ON w.user_id = u.user_id
+             WHERE w.status = ?
+             ORDER BY w.created_at DESC LIMIT 200",
+            [$status]
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/withdrawals.php';
 });
 
@@ -653,16 +675,97 @@ $router->post('/admin/withdrawals/reject', function($request, $response) {
 
 $router->get('/admin/ads', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $status = (string) ($request->get('status', 'pending') ?? 'pending');
+    $counts = ['pending' => 0, 'active' => 0, 'paused' => 0, 'completed' => 0];
+    $ads = [];
+
+    try {
+        $counts['pending'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'pending'");
+        $counts['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'active'");
+        $counts['paused'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'paused'");
+        $counts['completed'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'completed'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $ads = \Core\Database::fetchAll(
+            "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at
+             FROM ads a JOIN users u ON a.user_id = u.user_id
+             WHERE a.status = ?
+             ORDER BY a.created_at DESC LIMIT 200",
+            [$status]
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/ads.php';
 });
 
 $router->get('/admin/tasks', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $status = (string) ($request->get('status', 'active') ?? 'active');
+    $counts = ['draft' => 0, 'active' => 0, 'paused' => 0, 'completed' => 0];
+    $tasks = [];
+
+    try {
+        $counts['draft'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'draft'");
+        $counts['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'active'");
+        $counts['paused'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'paused'");
+        $counts['completed'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM tasks WHERE status = 'completed'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $tasks = \Core\Database::fetchAll(
+            "SELECT t.id, t.advertiser_id, u.username, u.email, t.title, t.ad_type, t.payment_per_execution, t.total_budget, t.max_executions, t.current_executions, t.status, t.created_at
+             FROM tasks t JOIN users u ON t.advertiser_id = u.user_id
+             WHERE t.status = ?
+             ORDER BY t.created_at DESC LIMIT 200",
+            [$status]
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/tasks.php';
 });
 
 $router->get('/admin/referrals', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $totalReferrals = 0;
+    $totalCommission = 0;
+    $topReferrers = [];
+    $recentReferrals = [];
+
+    try {
+        $totalReferrals = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM referrals");
+        $totalCommission = (float) \Core\Database::fetchColumn("SELECT COALESCE(SUM(amount), 0) FROM referral_earnings");
+    } catch (\Throwable $e) {}
+
+    try {
+        $topReferrers = \Core\Database::fetchAll(
+            "SELECT u.username, u.email, COUNT(r.referral_id) as referral_count, COALESCE(SUM(re.amount), 0) as total_earned
+             FROM referrals r
+             JOIN users u ON r.referrer_id = u.user_id
+             LEFT JOIN referral_earnings re ON re.referrer_id = r.referrer_id
+             GROUP BY r.referrer_id
+             ORDER BY referral_count DESC
+             LIMIT 20"
+        );
+    } catch (\Throwable $e) {}
+
+    try {
+        $recentReferrals = \Core\Database::fetchAll(
+            "SELECT r.referral_id, ref.username as referrer, ru.username as referred, r.commission_rate, r.level, r.created_at
+             FROM referrals r
+             JOIN users ref ON r.referrer_id = ref.user_id
+             JOIN users ru ON r.referred_user_id = ru.user_id
+             ORDER BY r.created_at DESC
+             LIMIT 50"
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/referrals.php';
 });
 
@@ -723,7 +826,7 @@ $router->post('/admin/broadcast', function($request, $response) {
     $message = trim($data['message'] ?? '');
 
     if (empty($message)) {
-        $_SESSION['flash_success'] = 'Message cannot be empty.';
+        $_SESSION['flash_error'] = 'Message cannot be empty.';
         $response->redirect('/admin/notifications');
         return;
     }
@@ -742,11 +845,58 @@ $router->post('/admin/broadcast', function($request, $response) {
 
 $router->get('/admin/settings', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $settings = [];
+
+    try {
+        $settings = [
+            'app_name' => Config::get('app.name') ?? 'VSItoA',
+            'app_url' => Config::get('app.url') ?? '',
+            'app_env' => Config::get('app.env') ?? 'production',
+            'app_debug' => Config::get('app.debug') ?? false,
+            'mail_host' => Config::get('mail.host') ?? '',
+            'mail_port' => Config::get('mail.port') ?? '',
+            'mail_username' => Config::get('mail.username') ?? '',
+            'deposit_enabled' => Config::get('deposits.enabled') ?? true,
+            'withdrawal_min' => Config::get('withdrawals.min_amount') ?? 10,
+            'withdrawal_fee' => Config::get('withdrawals.fee_percent') ?? 2,
+            'referral_commission' => Config::get('referrals.commission_rate') ?? 10,
+            'maintenance_mode' => Config::get('maintenance.enabled') ?? false,
+        ];
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/settings.php';
 });
 
 $router->get('/admin/security', function($request, $response) {
     \Core\Auth::requireAdmin();
+
+    $basePath = (string) Config::get('app.base_path', '');
+    $securityInfo = [
+        'failed_logins_today' => 0,
+        'total_admins' => 0,
+        'active_sessions' => 0,
+        'recent_logins' => [],
+    ];
+
+    try {
+        $securityInfo['failed_logins_today'] = (int) \Core\Database::fetchColumn(
+            "SELECT COUNT(*) FROM user_login_log WHERE login_status = 'failed' AND DATE(login_time) = CURDATE()"
+        );
+        $securityInfo['total_admins'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM admins WHERE status = 'active'");
+    } catch (\Throwable $e) {}
+
+    try {
+        $securityInfo['recent_logins'] = \Core\Database::fetchAll(
+            "SELECT ull.ip_address, ull.user_agent, ull.login_status, ull.login_time, u.username
+             FROM user_login_log ull
+             LEFT JOIN users u ON ull.user_id = u.user_id
+             ORDER BY ull.login_time DESC
+             LIMIT 20"
+        );
+    } catch (\Throwable $e) {}
+
     include ROOT_PATH . '/views/admin/security.php';
 });
 

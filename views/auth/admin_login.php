@@ -24,6 +24,14 @@ ob_start();
                             <input type="hidden" name="_token" value="<?= $_SESSION['_token'] ?? '' ?>">
 
                             <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" id="username" name="username" value="admin" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="password" class="form-label">Password</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-lock"></i></span>
@@ -116,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRF-TOKEN': data._token
             },
             body: JSON.stringify({
+    username: data.username,
     password: data.password
 })
         })

@@ -267,14 +267,17 @@ class Auth
      */
     public static function adminLogin(array $credentials): array
     {
+        $username = trim($credentials['username'] ?? 'admin');
         $password = $credentials['password'] ?? '';
 
         if (empty($password)) {
             throw new \Exception('Password is required');
         }
 
-        // Always use 'admin' as username for password-only login
-        $username = 'admin';
+        if (empty($username)) {
+            throw new \Exception('Username is required');
+        }
+
         $admin = Database::fetch(
             "SELECT * FROM admins WHERE username = ? AND status = 'active'",
             [$username]

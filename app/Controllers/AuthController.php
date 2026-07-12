@@ -574,6 +574,7 @@ class AuthController
         $data = $request->all();
 
         $validator = Validator::make($data, [
+            'username' => 'required',
             'password' => 'required'
         ]);
 

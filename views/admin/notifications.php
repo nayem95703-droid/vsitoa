@@ -37,6 +37,10 @@ ob_start();
         <div class="alert alert-success"><?= htmlspecialchars($_SESSION['flash_success']) ?></div>
         <?php unset($_SESSION['flash_success']); ?>
     <?php endif; ?>
+    <?php if (!empty($_SESSION['flash_error'])): ?>
+        <div class="alert alert-danger"><?= htmlspecialchars($_SESSION['flash_error']) ?></div>
+        <?php unset($_SESSION['flash_error']); ?>
+    <?php endif; ?>
 
     <!-- Broadcast Message Card -->
     <div class="card admin-card mb-4">

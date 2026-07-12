@@ -16,12 +16,12 @@ class AuthController
      */
     public function showLogin(Request $request, Response $response): void
     {
-        if (Core\Auth::adminCheck()) {
+        if (Auth::adminCheck()) {
             $response->redirect('/admin');
             return;
         }
 
-        include ROOT_PATH . '/views/admin/login.php';
+        include ROOT_PATH . '/views/auth/admin_login.php';
     }
 
     /**
@@ -29,7 +29,7 @@ class AuthController
      */
     public function login(Request $request, Response $response): void
     {
-        if (Core\Auth::adminCheck()) {
+        if (Auth::adminCheck()) {
             $response->json(['success' => false, 'message' => 'Already logged in']);
             return;
         }
@@ -47,7 +47,7 @@ class AuthController
         }
 
         try {
-            $result = Core\Auth::adminLogin($data);
+            $result = Auth::adminLogin($data);
 
             Logger::logAdminActivity('admin_login', [
                 'username' => $data['username'],
@@ -72,9 +72,9 @@ class AuthController
      */
     public function logout(Request $request, Response $response): void
     {
-        if (Core\Auth::adminCheck()) {
-            $admin = Core\Auth::admin();
-            Core\Auth::adminLogout();
+        if (Auth::adminCheck()) {
+            $admin = Auth::admin();
+            Auth::adminLogout();
 
             Logger::logAdminActivity('admin_logout', [
                 'admin_id' => $admin['admin_id'],

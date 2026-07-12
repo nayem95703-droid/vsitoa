@@ -20,7 +20,7 @@ class Mailer
             
             try {
                 // Server settings
-                self::$instance->SMTPDebug = Config::get('APP_DEBUG') ? SMTP::DEBUG_SERVER : SMTP::DEBUG_OFF;
+                self::$instance->SMTPDebug = Config::get('app.debug') ? SMTP::DEBUG_SERVER : SMTP::DEBUG_OFF;
                 self::$instance->isSMTP();
                 self::$instance->Host = Config::get('mail.host');
                 self::$instance->SMTPAuth = true;
