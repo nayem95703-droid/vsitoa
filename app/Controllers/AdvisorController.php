@@ -185,7 +185,7 @@ class AdvisorController
                 'device_type' => $data['device_type'],
                 'browser' => $data['browser'],
                 'user_level' => $data['user_level'],
-                'status' => 'active'
+                'status' => 'pending'
             ]);
             
             Database::commit();
@@ -200,7 +200,7 @@ class AdvisorController
             
             $response->json([
                 'success' => true,
-                'message' => 'Advertisement created successfully! Your ad is now live.',
+                'message' => 'Advertisement submitted successfully! It will be reviewed and activated shortly.',
                 'data' => [
                     'ad_id' => $adId,
                     'new_balance' => $user['advisor_balance']

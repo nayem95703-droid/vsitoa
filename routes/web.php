@@ -678,7 +678,7 @@ $router->get('/admin/ads', function($request, $response) {
 
     $basePath = (string) Config::get('app.base_path', '');
     $status = (string) ($request->get('status', 'pending') ?? 'pending');
-    $counts = ['pending' => 0, 'active' => 0, 'paused' => 0, 'completed' => 0];
+    $counts = ['pending' => 0, 'active' => 0, 'paused' => 0, 'completed' => 0, 'all' => 0];
     $ads = [];
 
     try {
@@ -686,19 +686,200 @@ $router->get('/admin/ads', function($request, $response) {
         $counts['active'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'active'");
         $counts['paused'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'paused'");
         $counts['completed'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads WHERE status = 'completed'");
+        $counts['all'] = (int) \Core\Database::fetchColumn("SELECT COUNT(*) FROM ads");
     } catch (\Throwable $e) {}
 
     try {
-        $ads = \Core\Database::fetchAll(
-            "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at
-             FROM ads a JOIN users u ON a.user_id = u.user_id
-             WHERE a.status = ?
-             ORDER BY a.created_at DESC LIMIT 200",
-            [$status]
-        );
+        if ($status === 'all') {
+            $ads = \Core\Database::fetchAll(
+                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at
+                 FROM ads a JOIN users u ON a.user_id = u.user_id
+                 ORDER BY a.created_at DESC LIMIT 200"
+            );
+        } else {
+            $ads = \Core\Database::fetchAll(
+                "SELECT a.ad_id, a.user_id, u.username, u.email, a.ad_title, a.ad_type, a.target_url, a.description, a.cost_per_view, a.total_views, a.remaining_views, a.spent_amount, a.status, a.created_at
+                 FROM ads a JOIN users u ON a.user_id = u.user_id
+                 WHERE a.status = ?
+                 ORDER BY a.created_at DESC LIMIT 200",
+                [$status]
+            );
+        }
     } catch (\Throwable $e) {}
 
     include ROOT_PATH . '/views/admin/ads.php';
+});
+
+// Admin ad approve
+$router->post('/admin/ads/approve', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $adId = (int) ($data['ad_id'] ?? 0);
+
+    if ($adId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid ad.';
+        $response->redirect('/admin/ads?status=pending');
+        return;
+    }
+
+    try {
+        $ad = \Core\Database::fetch("SELECT ad_id, user_id, ad_title, status FROM ads WHERE ad_id = ?", [$adId]);
+        if (!$ad) {
+            $_SESSION['flash_error'] = 'Ad not found.';
+            $response->redirect('/admin/ads?status=pending');
+            return;
+        }
+
+        \Core\Database::update('ads', ['status' => 'active', 'started_at' => date('Y-m-d H:i:s')], 'ad_id = ?', [$adId]);
+
+        \Core\Database::insert('admin_notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been approved and is now live.',
+            'type' => 'ad'
+        ]);
+
+        \Core\Database::insert('notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'title' => 'Ad Approved',
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been approved and is now live.',
+            'type' => 'ad',
+            'is_read' => 0
+        ]);
+
+        $_SESSION['flash_success'] = 'Ad approved and activated.';
+    } catch (\Throwable $e) {
+        $_SESSION['flash_error'] = 'Failed to approve ad.';
+    }
+
+    $response->redirect('/admin/ads?status=pending');
+});
+
+// Admin ad reject
+$router->post('/admin/ads/reject', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $adId = (int) ($data['ad_id'] ?? 0);
+    $reason = trim($data['admin_notes'] ?? '');
+
+    if ($adId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid ad.';
+        $response->redirect('/admin/ads?status=pending');
+        return;
+    }
+
+    try {
+        $ad = \Core\Database::fetch("SELECT ad_id, user_id, ad_title, status FROM ads WHERE ad_id = ?", [$adId]);
+        if (!$ad) {
+            $_SESSION['flash_error'] = 'Ad not found.';
+            $response->redirect('/admin/ads?status=pending');
+            return;
+        }
+
+        \Core\Database::update('ads', ['status' => 'archived'], 'ad_id = ?', [$adId]);
+
+        \Core\Database::insert('admin_notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been rejected.' . ($reason ? ' Reason: ' . $reason : ''),
+            'type' => 'warning'
+        ]);
+
+        \Core\Database::insert('notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'title' => 'Ad Rejected',
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been rejected.' . ($reason ? ' Reason: ' . $reason : ''),
+            'type' => 'warning',
+            'is_read' => 0
+        ]);
+
+        $_SESSION['flash_success'] = 'Ad rejected.';
+    } catch (\Throwable $e) {
+        $_SESSION['flash_error'] = 'Failed to reject ad.';
+    }
+
+    $response->redirect('/admin/ads?status=pending');
+});
+
+// Admin ad pause (deactivate - sexual/inappropriate content)
+$router->post('/admin/ads/pause', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $adId = (int) ($data['ad_id'] ?? 0);
+
+    if ($adId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid ad.';
+        $response->redirect('/admin/ads');
+        return;
+    }
+
+    try {
+        $ad = \Core\Database::fetch("SELECT ad_id, user_id, ad_title, status FROM ads WHERE ad_id = ?", [$adId]);
+        if (!$ad) {
+            $_SESSION['flash_error'] = 'Ad not found.';
+            $response->redirect('/admin/ads');
+            return;
+        }
+
+        \Core\Database::update('ads', ['status' => 'paused'], 'ad_id = ?', [$adId]);
+
+        \Core\Database::insert('admin_notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been deactivated by admin for policy violation.',
+            'type' => 'warning'
+        ]);
+
+        \Core\Database::insert('notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'title' => 'Ad Deactivated',
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been deactivated by admin for policy violation.',
+            'type' => 'warning',
+            'is_read' => 0
+        ]);
+
+        $_SESSION['flash_success'] = 'Ad paused/deactivated.';
+    } catch (\Throwable $e) {
+        $_SESSION['flash_error'] = 'Failed to pause ad.';
+    }
+
+    $response->redirect('/admin/ads');
+});
+
+// Admin ad resume
+$router->post('/admin/ads/resume', function($request, $response) {
+    \Core\Auth::requireAdmin();
+    $data = $request->all();
+    $adId = (int) ($data['ad_id'] ?? 0);
+
+    if ($adId <= 0) {
+        $_SESSION['flash_error'] = 'Invalid ad.';
+        $response->redirect('/admin/ads');
+        return;
+    }
+
+    try {
+        $ad = \Core\Database::fetch("SELECT ad_id, user_id, ad_title, status FROM ads WHERE ad_id = ?", [$adId]);
+        if (!$ad) {
+            $_SESSION['flash_error'] = 'Ad not found.';
+            $response->redirect('/admin/ads');
+            return;
+        }
+
+        \Core\Database::update('ads', ['status' => 'active'], 'ad_id = ?', [$adId]);
+
+        \Core\Database::insert('notifications', [
+            'user_id' => (int) $ad['user_id'],
+            'title' => 'Ad Reactivated',
+            'message' => 'Your ad "' . $ad['ad_title'] . '" has been reactivated.',
+            'type' => 'ad',
+            'is_read' => 0
+        ]);
+
+        $_SESSION['flash_success'] = 'Ad resumed/activated.';
+    } catch (\Throwable $e) {
+        $_SESSION['flash_error'] = 'Failed to resume ad.';
+    }
+
+    $response->redirect('/admin/ads');
+});
 });
 
 $router->get('/admin/tasks', function($request, $response) {
