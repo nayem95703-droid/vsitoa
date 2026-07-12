@@ -504,7 +504,11 @@ class AdController
 
         } catch (\Exception $e) {
             Database::rollback();
-            Logger::error("Complete ad view error: " . $e->getMessage());
+            Logger::error("Complete ad view error: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'view_id' => $viewId ?? null,
+                'user_id' => $userId ?? null
+            ]);
             $response->error('Failed to complete ad view', 500);
         }
     }
@@ -516,53 +520,42 @@ class AdController
     {
         $fraudScore = 0;
 
-        // Check IP address
-        $ipCount = Database::fetchColumn("
+        // Check IP address — same IP viewing too many ads in one day
+        $ipCount = (int) Database::fetchColumn("
             SELECT COUNT(*) 
             FROM ad_views 
             WHERE ip_address = ? 
             AND DATE(created_at) = CURDATE()
         ", [$adView['ip_address']]);
 
-        if ($ipCount > 100) {
+        if ($ipCount > 200) {
             $fraudScore += 30;
         }
 
-        // Check user agent consistency
-        $userAgentCount = Database::fetchColumn("
-            SELECT COUNT(*) 
-            FROM user_login_log 
-            WHERE user_id = ? 
-            AND user_agent = ?
-            AND login_time > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        ", [$adView['viewer_user_id'], $adView['user_agent']]);
-
-        if ($userAgentCount === 0) {
-            $fraudScore += 20;
-        }
-
-        // Check view time consistency
-        if ($validationData['page_focus_lost'] ?? false) {
-            $fraudScore += 15;
-        }
-
-        if ($validationData['multiple_tabs'] ?? false) {
-            $fraudScore += 25;
-        }
-
-        // Check rapid clicking
-        $recentViews = Database::fetchColumn("
+        // Check rapid clicking — too many views in short period
+        $recentViews = (int) Database::fetchColumn("
             SELECT COUNT(*) 
             FROM ad_views 
             WHERE viewer_user_id = ? 
             AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)
         ", [$adView['viewer_user_id']]);
 
-        if ($recentViews > 5) {
+        if ($recentViews > 10) {
             $fraudScore += 35;
         }
 
-        return $fraudScore < 50; // Allow if fraud score is less than 50
+        // Check validation data from client (support both camelCase and snake_case)
+        $pageFocusLost = $validationData['page_focus_lost'] ?? $validationData['pageFocusLost'] ?? false;
+        if ($pageFocusLost) {
+            $fraudScore += 10;
+        }
+
+        $multipleTabs = $validationData['multiple_tabs'] ?? $validationData['multipleTabs'] ?? false;
+        if ($multipleTabs) {
+            $fraudScore += 15;
+        }
+
+        return $fraudScore < 70;
     }
 
     /**
